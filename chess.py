@@ -131,9 +131,9 @@ class Chessboard:
         self.turn = Color.WHITE
 
     def __str__(self):
-        res = '  ' + ' '.join(string.ascii_lowercase[:8]) + '\n'
+        res = '  ' + ' '.join(map(str, range(8))) + '\n'
         for i in range(7, -1, -1):
-            res += str(i+1)
+            res += str(i)
             for j in range(8):
                 if self.board[i][j] == None:
                     res += '  '

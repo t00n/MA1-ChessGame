@@ -69,3 +69,10 @@ def test_board():
     board.move((1,6), (1,4))
     with pytest.raises(Exception):
         board.move((6,3), (6,5))
+
+if __name__ == '__main__':
+    chessboard = Chessboard()
+    while True:
+        print(chessboard)
+        move = input('Enter move array [(x1, y1), (x2, y2)] : ')
+        chessboard.move(*eval(move))
