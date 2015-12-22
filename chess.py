@@ -1,0 +1,140 @@
+from abc import ABCMeta, abstractmethod
+import pytest
+import string
+import math
+
+class Color:
+    WHITE=0
+    BLACK=1
+
+class Chessman:
+    __metaclass__ = ABCMeta
+
+    def __init__(self, color, position):
+        self.color = color
+        self.position = position
+
+    @abstractmethod
+    def paths(self):
+        pass
+
+def h_v_paths(x, y):
+    res = []
+    # right
+    res.append([(i, y) for i in range(x+1, 8)])
+    # left
+    res.append([(i, y) for i in range(x-1, -1, -1)])
+    # up
+    res.append([(x, j) for j in range(y+1, 8)])
+    # down
+    res.append([(x, j) for j in range(y-1, -1, -1)])
+    return res
+
+def diag_paths(x, y):
+    res = []
+    # right and up
+    res.append([(x+i, y+i) for i in range(1, min(8-x, 8-y))])
+    # right and down
+    res.append([(x+i, y-i) for i in range(1, min(8-x, y+1))])
+    # left and down
+    res.append([(x-i, y-i) for i in range(1, min(x+1, y+1))])
+    # left and up
+    res.append([(x-i, y+i) for i in range(1, min(x+1, 8-y))])
+    return res
+
+class King(Chessman):
+    def paths(self):
+        x, y = self.position[0], self.position[1]
+        res = []
+        for i in range(x-1, x+2):
+            for j in range(y-1, y+2):
+                if (i,j) != (x, y) and i >= 0 and i < 8 and j >= 0 and j < 8:
+                    res.append([(i,j)])
+        return res
+
+class Queen(Chessman):
+    def paths(self):
+        x, y = self.position[0], self.position[1]
+        res = []
+        res.extend(h_v_paths(x,y))
+        res.extend(diag_paths(x,y))
+        return res
+
+class Rook(Chessman):
+    def paths(self):
+        x, y = self.position[0], self.position[1]
+        return h_v_paths(x,y)
+
+class Bishop(Chessman):
+    def paths(self):
+        x, y = self.position[0], self.position[1]
+        return diag_paths(x,y)
+
+class Knight(Chessman):
+    def paths(self):
+        x, y = self.position[0], self.position[1]
+        return [[(i,j)] for i in range(x-2, x+3) for j in range(y-2, y+3) if i >= 0 and i < 8 and j >= 0 and j < 8 and ((math.fabs(x-i) == 2 and math.fabs(y-j) == 1) or (math.fabs(x-i) == 1 and math.fabs(y-j) == 2))]
+
+class Pawn(Chessman):
+    def paths(self):
+        x, y = self.position[0], self.position[1]
+        res = []
+        if self.color == Color.WHITE:
+            if y == 1:
+                res.append([(x, y+1), (x, y+2)])
+            elif y < 7:
+                res.append([(x, y+1)])
+        elif self.color == Color.BLACK:
+            if y == 6:
+                res.append([(x, y-1), (x, y-2)])
+            elif y > 0:
+                res.append([(x, y-1)])
+        return res
+
+def print_test(paths):
+    print(end='  ')
+    for a in string.ascii_lowercase[:8]:
+        print(a, end=' ')
+    print()
+    for i in range(8):
+        print(i+1, end=' ')
+        for j in range(8):
+            pos = (j, i)
+            ok = False
+            for path in paths:
+                if pos in path:
+                    print('x', end=' ')
+                    ok = True
+            if not ok:
+                print(' ', end=' ')
+        print()
+    print(paths)
+
+
+# print_test(diag_paths(0,0))
+# print_test(diag_paths(6,4))
+# print_test(diag_paths(4,6))
+# print_test(diag_paths(7,7))
+# print_test(diag_paths(7,0))
+# print_test(diag_paths(0,7))
+# print_test(diag_paths(4,4))
+# print_test(h_v_paths(0,0))
+# print_test(h_v_paths(0,7))
+# print_test(h_v_paths(7,0))
+# print_test(h_v_paths(7,7))
+# print_test(h_v_paths(3,6))
+# print_test(h_v_paths(6,2))
+# print_test(King(Color.WHITE, (0,0)).paths())
+# print_test(King(Color.WHITE, (7,7)).paths())
+# print_test(King(Color.WHITE, (5,1)).paths())
+# print_test(Knight(Color.WHITE, (0,0)).paths())
+# print_test(Knight(Color.WHITE, (5,2)).paths())
+# print_test(Knight(Color.WHITE, (3,7)).paths())
+# print_test(Pawn(Color.WHITE, (6,1)).paths())
+# print_test(Pawn(Color.WHITE, (6,2)).paths())
+# print_test(Pawn(Color.WHITE, (6,6)).paths())
+# print_test(Pawn(Color.WHITE, (6,7)).paths())
+# print_test(Pawn(Color.BLACK, (6,6)).paths())
+# print_test(Pawn(Color.BLACK, (6,5)).paths())
+# print_test(Pawn(Color.BLACK, (6,1)).paths())
+# print_test(Pawn(Color.BLACK, (6,0)).paths())
