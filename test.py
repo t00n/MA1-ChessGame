@@ -71,8 +71,17 @@ def test_board():
         board.move((6,3), (6,5))
 
 if __name__ == '__main__':
+    import sys
     chessboard = Chessboard()
-    while True:
+    if len(sys.argv) == 2:
+        with open(sys.argv[1]) as f:
+            for line in f:
+                print(chessboard)
+                print(line)
+                chessboard.move(*eval(line))
         print(chessboard)
-        move = input('Enter move array [(x1, y1), (x2, y2)] : ')
-        chessboard.move(*eval(move))
+    else:
+        while True:
+            print(chessboard)
+            move = input('Enter move array [(x1, y1), (x2, y2)] : ')
+            chessboard.move(*eval(move))
