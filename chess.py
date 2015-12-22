@@ -7,6 +7,12 @@ class Color:
     WHITE=0
     BLACK=1
 
+    @staticmethod
+    def invert(color):
+        if color == Color.BLACK:
+            return Color.WHITE
+        return Color.BLACK
+
 def h_v_paths(x, y):
     res = []
     # right
@@ -177,10 +183,9 @@ class Chessboard:
                     break
         # pawn capture
         if isinstance(chessman, Pawn):
-            prout = [(i,chessman.next) for i in [chessman.x-1, chessman.x+1] if self.board[chessman.next][i] != None and self.board[chessman.next][i].color != chessman.color]
-            moves.extend(prout)
+            captures = [(i,chessman.next) for i in [chessman.x-1, chessman.x+1] if i >= 0 and i < 8 and chessman.next >= 0 and chessman.next < 8 and self.board[chessman.next][i] != None and self.board[chessman.next][i].color != chessman.color]
+            moves.extend(captures)
         return moves
-
 
     def move(self, fr, to):
         chessman = self.select(fr)
@@ -188,9 +193,6 @@ class Chessboard:
             chessman.move(to)
             self.board[to[1]][to[0]] = chessman
             self.board[fr[1]][fr[0]] = None
-            if self.turn == Color.WHITE:
-                self.turn = Color.BLACK
-            else:
-                self.turn = Color.WHITE
+            self.turn = Color.invert(self.turn)
         else:
             raise Exception('Can\'t go there !')
