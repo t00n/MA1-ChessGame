@@ -7,21 +7,6 @@ class Color:
     WHITE=0
     BLACK=1
 
-class Chessman:
-    __metaclass__ = ABCMeta
-
-    def __init__(self, color, position):
-        self.color = color
-        self.position = position
-
-    @abstractmethod
-    def paths(self):
-        pass
-
-    @abstractmethod
-    def __str__(self):
-        return '\033[97m%s\033[0m' if self.color == Color.WHITE else '\033[90m%s\033[0m'
-
 def h_v_paths(x, y):
     res = []
     # right
@@ -45,6 +30,24 @@ def diag_paths(x, y):
     # left and up
     res.append([(x-i, y+i) for i in range(1, min(x+1, 8-y))])
     return res
+
+class Chessman:
+    __metaclass__ = ABCMeta
+
+    def __init__(self, color, position):
+        self.color = color
+        self.position = position
+
+    @abstractmethod
+    def paths(self):
+        pass
+
+    @abstractmethod
+    def __str__(self):
+        return '\033[97m%s\033[0m' if self.color == Color.WHITE else '\033[90m%s\033[0m'
+
+    def move(self, to):
+        self.position = to
 
 class King(Chessman):
     def paths(self):
@@ -125,6 +128,7 @@ class Chessboard:
             [Pawn(Color.BLACK, (i, 6)) for i in range(8)],
             [Rook(Color.BLACK, (0,7)), Knight(Color.BLACK, (1,7)), Bishop(Color.BLACK, (2,7)), Queen(Color.BLACK, (3,7)), King(Color.BLACK, (4,7)), Bishop(Color.BLACK, (5,7)), Knight(Color.BLACK, (6,7)), Rook(Color.BLACK, (7,7))]            
         ]
+        self.turn = Color.WHITE
 
     def __str__(self):
         res = '  ' + ' '.join(string.ascii_lowercase[:8]) + '\n'
@@ -138,50 +142,36 @@ class Chessboard:
             res += '\n'
         return res
 
-def print_test(paths):
-    print(end='  ')
-    for a in string.ascii_lowercase[:8]:
-        print(a, end=' ')
-    print()
-    for i in range(8):
-        print(i+1, end=' ')
-        for j in range(8):
-            pos = (j, i)
-            ok = False
-            for path in paths:
-                if pos in path:
-                    print('x', end=' ')
-                    ok = True
-            if not ok:
-                print(' ', end=' ')
-        print()
-    print(paths)
+    def select(self, fr):
+        chessman = self.board[fr[1]][fr[0]]
+        if chessman == None:
+            raise Exception('Nothing here')
+        if chessman.color != self.turn:
+            raise Exception('Not your turn !')
+        return chessman
+
+    def compute_moves(self, chessman):
+        paths = chessman.paths()
+        moves = []
+        for path in paths:
+            for cell in path:
+                cellman = self.board[cell[1]][cell[0]]
+                if cellman == None or cellman.color != chessman.color:
+                    moves.append(cell)
+                else:
+                    break
+        return moves
 
 
-# print_test(diag_paths(0,0))
-# print_test(diag_paths(6,4))
-# print_test(diag_paths(4,6))
-# print_test(diag_paths(7,7))
-# print_test(diag_paths(7,0))
-# print_test(diag_paths(0,7))
-# print_test(diag_paths(4,4))
-# print_test(h_v_paths(0,0))
-# print_test(h_v_paths(0,7))
-# print_test(h_v_paths(7,0))
-# print_test(h_v_paths(7,7))
-# print_test(h_v_paths(3,6))
-# print_test(h_v_paths(6,2))
-# print_test(King(Color.WHITE, (0,0)).paths())
-# print_test(King(Color.WHITE, (7,7)).paths())
-# print_test(King(Color.WHITE, (5,1)).paths())
-# print_test(Knight(Color.WHITE, (0,0)).paths())
-# print_test(Knight(Color.WHITE, (5,2)).paths())
-# print_test(Knight(Color.WHITE, (3,7)).paths())
-# print_test(Pawn(Color.WHITE, (6,1)).paths())
-# print_test(Pawn(Color.WHITE, (6,2)).paths())
-# print_test(Pawn(Color.WHITE, (6,6)).paths())
-# print_test(Pawn(Color.WHITE, (6,7)).paths())
-# print_test(Pawn(Color.BLACK, (6,6)).paths())
-# print_test(Pawn(Color.BLACK, (6,5)).paths())
-# print_test(Pawn(Color.BLACK, (6,1)).paths())
-# print_test(Pawn(Color.BLACK, (6,0)).paths())
+    def move(self, fr, to):
+        chessman = self.select(fr)
+        if to in self.compute_moves(chessman):
+            chessman.move(to)
+            self.board[to[1]][to[0]] = chessman
+            self.board[fr[1]][fr[0]] = None
+            if self.turn == Color.WHITE:
+                self.turn = Color.BLACK
+            else:
+                self.turn = Color.WHITE
+        else:
+            raise Exception('Can\'t go there !')
