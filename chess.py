@@ -150,6 +150,7 @@ class Chessboard:
             [Rook(Color.BLACK, (0,7)), Knight(Color.BLACK, (1,7)), Bishop(Color.BLACK, (2,7)), Queen(Color.BLACK, (3,7)), King(Color.BLACK, (4,7)), Bishop(Color.BLACK, (5,7)), Knight(Color.BLACK, (6,7)), Rook(Color.BLACK, (7,7))]            
         ]
         self.turn = Color.WHITE
+        self.history = []
 
     def __str__(self):
         res = '  ' + ' '.join(map(str, range(8))) + '\n'
@@ -191,8 +192,25 @@ class Chessboard:
         chessman = self.select(fr)
         if to in self.compute_moves(chessman):
             chessman.move(to)
+            self.history.append({
+                'fr': {
+                    'index': fr, 
+                    'cell': self.board[fr[1]][fr[0]]
+                    },
+                'to': {
+                    'index': to,
+                    'cell': self.board[to[1]][to[0]]
+                }})
             self.board[to[1]][to[0]] = chessman
             self.board[fr[1]][fr[0]] = None
             self.turn = Color.invert(self.turn)
         else:
             raise Exception('Can\'t go there !')
+
+    def revert(self, n=1):
+        for i in range(n):
+            move = self.history.pop()
+            fr = move['fr']
+            to = move['to']
+            self.board[fr['index'][1]][fr['index'][0]] = fr['cell']
+            self.board[to['index'][1]][to['index'][0]] = to['cell']
