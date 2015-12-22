@@ -70,6 +70,12 @@ def test_board():
     with pytest.raises(Exception):
         board.move((6,3), (6,5))
 
+def test_pawncapture():
+    board = Chessboard()
+    board.move((6,1), (6,3))
+    board.move((5,6), (5,4))
+    board.move((6,3), (5,4))
+
 if __name__ == '__main__':
     import sys
     chessboard = Chessboard()

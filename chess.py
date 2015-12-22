@@ -49,6 +49,14 @@ class Chessman:
     def move(self, to):
         self.position = to
 
+    @property
+    def x(self):
+        return self.position[0]
+
+    @property
+    def y(self):
+        return self.position[1]
+
 class King(Chessman):
     def paths(self):
         x, y = self.position[0], self.position[1]
@@ -116,6 +124,13 @@ class Pawn(Chessman):
     def __str__(self):
         return super(Pawn, self).__str__() % 'P'
 
+    @property
+    def next(self):
+        if self.color == Color.WHITE:
+            return self.y+1
+        else:
+            return self.y-1
+
 class Chessboard:
     def __init__(self):
         self.board = [
@@ -160,6 +175,10 @@ class Chessboard:
                     moves.append(cell)
                 else:
                     break
+        # pawn capture
+        if isinstance(chessman, Pawn):
+            prout = [(i,chessman.next) for i in [chessman.x-1, chessman.x+1] if self.board[chessman.next][i] != None and self.board[chessman.next][i].color != chessman.color]
+            moves.extend(prout)
         return moves
 
 
