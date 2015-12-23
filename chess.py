@@ -164,6 +164,19 @@ class Chessboard:
             res += '\n'
         return res
 
+    def king_in_check(self, color):
+        for i in range(8):
+            for j in range(8):
+                chessman = self.board[j][i]
+                if isinstance(chessman, King) and chessman.color == color:
+                    king = chessman
+        for i in range(8):
+            for j in range(8):
+                chessman = self.board[j][i]
+                if chessman != None and chessman.color != color and king.position in self.compute_moves(chessman):
+                    return True
+        return False
+
     def select(self, fr):
         chessman = self.board[fr[1]][fr[0]]
         if chessman == None:
@@ -180,7 +193,7 @@ class Chessboard:
                 cellman = self.board[cell[1]][cell[0]]
                 if cellman == None or cellman.color != chessman.color:
                     moves.append(cell)
-                else:
+                if cellman != None:
                     break
         # pawn capture
         if isinstance(chessman, Pawn):
@@ -188,24 +201,37 @@ class Chessboard:
             moves.extend(captures)
         return moves
 
+    def legal_moves(self, chessman):
+        moves = self.compute_moves(chessman)
+        newmoves = []
+        for move in moves:
+            self.do(chessman.position, move)
+            if not self.king_in_check(chessman.color):
+                newmoves.append(move)
+            self.revert()
+        return newmoves
+
     def move(self, fr, to):
         chessman = self.select(fr)
-        if to in self.compute_moves(chessman):
-            chessman.move(to)
-            self.history.append({
-                'fr': {
-                    'index': fr, 
-                    'cell': self.board[fr[1]][fr[0]]
-                    },
-                'to': {
-                    'index': to,
-                    'cell': self.board[to[1]][to[0]]
-                }})
-            self.board[to[1]][to[0]] = chessman
-            self.board[fr[1]][fr[0]] = None
+        if to in self.legal_moves(chessman):
+            self.do(fr, to)
             self.turn = Color.invert(self.turn)
         else:
             raise Exception('Can\'t go there !')
+
+    def do(self, fr, to):
+        self.history.append({
+            'fr': {
+                'index': fr, 
+                'cell': self.board[fr[1]][fr[0]]
+                },
+            'to': {
+                'index': to,
+                'cell': self.board[to[1]][to[0]]
+            }})
+        self.board[to[1]][to[0]] = self.board[fr[1]][fr[0]]
+        self.board[to[1]][to[0]].move(to)
+        self.board[fr[1]][fr[0]] = None
 
     def revert(self, n=1):
         for i in range(n):
@@ -213,4 +239,5 @@ class Chessboard:
             fr = move['fr']
             to = move['to']
             self.board[fr['index'][1]][fr['index'][0]] = fr['cell']
+            self.board[fr['index'][1]][fr['index'][0]].move(fr['index'])
             self.board[to['index'][1]][to['index'][0]] = to['cell']

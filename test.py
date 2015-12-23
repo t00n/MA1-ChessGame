@@ -76,6 +76,14 @@ def test_pawncapture():
     board.move((5,6), (5,4))
     board.move((6,3), (5,4))
 
+def test_king_check():
+    board = Chessboard()
+    board.move((4,1), (4,3))
+    board.move((5,6), (5,4))
+    board.move((3,0), (7,4))
+    with pytest.raises(Exception):
+        board.move((6,6), (6,4))
+
 if __name__ == '__main__':
     import sys
     chessboard = Chessboard()
