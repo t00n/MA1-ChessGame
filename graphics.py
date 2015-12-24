@@ -25,6 +25,11 @@ class Window:
         VERTEX_SHADER = shaders.compileShader(open('shaders/obj.vs').read(), GL_VERTEX_SHADER)
         FRAGMENT_SHADER = shaders.compileShader(open('shaders/obj.fs').read(), GL_FRAGMENT_SHADER)
         self.program = shaders.compileProgram(VERTEX_SHADER, FRAGMENT_SHADER)
+        shaders.glUseProgram(self.program)
+        projection_matrix_location = glGetUniformLocation(self.program, 'u_projection')
+        matrix = self._projection_matrix()
+        glUniformMatrix4fv(projection_matrix_location, 1, GL_TRUE, matrix)
+        shaders.glUseProgram(0)
         # shaders.glUseProgram(self.program)
         self.vbos = []
         self.objects = []
@@ -45,9 +50,6 @@ class Window:
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
 
         shaders.glUseProgram(self.program)
-        projection_matrix_location = glGetUniformLocation(self.program, 'u_projection')
-        matrix = self._projection_matrix()
-        glUniformMatrix4fv(projection_matrix_location, 1, GL_TRUE, matrix)
         for i, vbo in enumerate(self.vbos):
             try:
                 vbo.bind()
