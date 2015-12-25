@@ -9,8 +9,9 @@ class Mesh:
 
 data = Collada('data/chessboard+man.dae')
 
-geo = data.geometries[0]
+geo = data.geometries[16]
 poly = geo.primitives[0]
 
 scene = []
 scene.append(poly)
+scene.append(geo.primitives[1])
