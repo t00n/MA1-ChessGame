@@ -18,8 +18,8 @@ class MouseState:
 class Camera:
     def __init__(self):
         self.x = 0
-        self.y = 0
-        self.z = 0
+        self.y = 10
+        self.z = 20
         self.up = 0
         self.right = 0
 
@@ -76,11 +76,11 @@ class Window:
         glutMainLoop()
 
     def _projection_matrix(self):
-        # return perspective(60, self.height/self.width, 1, 100)
-        return ortho(-10, 10, -10, 10, 0, 100)
+        return perspective(90, self.width/self.height, 0.1, 100)
+        # return ortho(-10, 10, -10, 10, 0, 10)
 
     def _view_matrix(self):
-        return rotate(self.camera.up, (1,0,0)) * rotate(self.camera.right, (0,1,0)) * translate((-self.camera.x, -self.camera.y, -self.camera.z))
+        return look_at((self.camera.x, self.camera.y, self.camera.z), (0,0,0), (0,1,0))
 
     def onclick(self, button, state, x, y):
         if state == GLUT_DOWN:

@@ -5,7 +5,6 @@ class Mesh:
         self.vertices = vertices
         self.normals = normals
         self.texcoord = texcoord
-        self.texture = texture
 
 data = Collada('data/chessboard+man.dae')
 
