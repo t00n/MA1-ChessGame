@@ -12,4 +12,4 @@ data = Collada('data/chessboard+man.dae')
 geometries = data.geometries
 
 scene = {}
-scene['board'] = geometries[16]
+scene['board'] = geometries[0]

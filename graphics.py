@@ -5,6 +5,7 @@ from OpenGL.GLUT import *
 from OpenGL.GLUT.freeglut import *
 import numpy as np
 from vispy.util.transforms import *
+from util import look_at
 
 class MouseState:
     def __init__(self):
@@ -64,7 +65,7 @@ class Window:
             for prim in geo.primitives:
                 vertices.extend(prim.vertex[prim.vertex_index])
                 normals.extend(prim.normal[prim.normal_index])
-            self.vertices[name] = vbo.VBO(np.concatenate((np.array(vertices), np.array(normals)), axis=1))
+            self.vertices[name] = vbo.VBO(np.concatenate((np.array(vertices)[:,[0,2,1]], np.array(normals)[:,[0,2,1]]), axis=1))
             # self.normals[name] = vbo.VBO(np.array(normals))
 
         self.view_matrix_location = glGetUniformLocation(self.program, 'u_view')
@@ -75,11 +76,11 @@ class Window:
         glutMainLoop()
 
     def _projection_matrix(self):
-        return perspective(60, self.width/self.height, 1, 100)
-        # return ortho(-50, 50, -50, 50, 0, 100)
+        # return perspective(60, self.height/self.width, 1, 100)
+        return ortho(-10, 10, -10, 10, 0, 100)
 
     def _view_matrix(self):
-        return translate((-self.camera.x, -self.camera.y, -self.camera.z))
+        return rotate(self.camera.up, (1,0,0)) * rotate(self.camera.right, (0,1,0)) * translate((-self.camera.x, -self.camera.y, -self.camera.z))
 
     def onclick(self, button, state, x, y):
         if state == GLUT_DOWN:
@@ -102,25 +103,25 @@ class Window:
     def onmouse(self, x, y):
         smooth_factor = 5
         if self.mouse.left_button == True:
-            self.camera.up += (x - self.mouse.x)/smooth_factor
-            self.camera.right += (y - self.mouse.y)/smooth_factor
+            self.camera.right += (x - self.mouse.x)/smooth_factor
+            self.camera.up += (y - self.mouse.y)/smooth_factor
             print(x - self.mouse.x, y - self.mouse.y)
         self.mouse.x = x
         self.mouse.y = y
 
     def onkeyboard(self, key, x, y):
         if key == b'a':
-            self.camera.x -= 1
+            self.camera.x -= 0.1
         elif key == b'e':
-            self.camera.x += 1
+            self.camera.x += 0.1
         elif key == b'z':
-            self.camera.y += 1
+            self.camera.y += 0.1
         elif key == b's':
-            self.camera.y -= 1
+            self.camera.y -= 0.1
         elif key == b'q':
-            self.camera.z += 1
+            self.camera.z += 0.1
         elif key == b'd':
-            self.camera.z -= 1
+            self.camera.z -= 0.1
         print(self.camera.x, self.camera.y, self.camera.z)
 
 
