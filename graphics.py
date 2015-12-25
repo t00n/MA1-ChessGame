@@ -54,14 +54,13 @@ class Window:
         shaders.glUseProgram(0)
 
         # load VBOs
-        self.vbos = []
-        self.objects = []
-        for obj in scene:
+        self.scene = scene
+        self.vbos = {}
+        for name, geo in self.scene.items():
             vertices = []
-            for poly in obj:
-                vertices.extend(poly.vertices)
-            self.vbos.append(vbo.VBO(np.array(vertices)))
-            self.objects.append(obj)
+            for prim in geo.primitives:
+                vertices.extend(prim.vertex[prim.vertex_index])
+            self.vbos[name] = vbo.VBO(np.array(vertices))
 
         # start main loop
         glutMainLoop()
@@ -106,13 +105,13 @@ class Window:
         shaders.glUseProgram(self.program)
         view_matrix_location = glGetUniformLocation(self.program, 'u_view')
         glUniformMatrix4fv(view_matrix_location, 1, GL_TRUE, self._view_matrix())
-        for i, vbo in enumerate(self.vbos):
+        for vbo in self.vbos.values():
             try:
                 vbo.bind()
                 try:
                     glEnableClientState(GL_VERTEX_ARRAY)
                     glVertexPointerf(vbo)
-                    glDrawArrays(GL_TRIANGLES, 0, sum([len(obj.vertices) for obj in self.objects[i]]))
+                    glDrawArrays(GL_TRIANGLES, 0, len(vbo))
                 finally:
                     glDisableClientState(GL_VERTEX_ARRAY)
             finally:
