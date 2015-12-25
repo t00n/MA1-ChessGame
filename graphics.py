@@ -39,6 +39,7 @@ class Window:
         glutMouseFunc(self.onclick)
         glutMotionFunc(self.onmouse)
         glutPassiveMotionFunc(self.onmouse)
+        glutKeyboardFunc(self.onkeyboard)
         self.mouse = MouseState()
         # glutIdleFunc(self.draw)
 
@@ -50,7 +51,7 @@ class Window:
         # projection matrix
         shaders.glUseProgram(self.program)
         projection_matrix_location = glGetUniformLocation(self.program, 'u_projection')
-        glUniformMatrix4fv(projection_matrix_location, 1, GL_TRUE, self._projection_matrix())
+        glUniformMatrix4fv(projection_matrix_location, 1, GL_FALSE, self._projection_matrix())
         shaders.glUseProgram(0)
 
         # load VBOs
@@ -74,11 +75,11 @@ class Window:
         glutMainLoop()
 
     def _projection_matrix(self):
-        # return perspective(self.height, self.width/self.height, 1, 100)
-        return ortho(-10, 10, -10, 10, 0, 100)
+        return perspective(60, self.width/self.height, 1, 100)
+        # return ortho(-50, 50, -50, 50, 0, 100)
 
     def _view_matrix(self):
-        return rotate(self.camera.up, (1,0,0)) * rotate(self.camera.right, (0,1,0)) * translate((0,0,-500))
+        return translate((-self.camera.x, -self.camera.y, -self.camera.z))
 
     def onclick(self, button, state, x, y):
         if state == GLUT_DOWN:
@@ -99,19 +100,35 @@ class Window:
         self.mouse.y = y
 
     def onmouse(self, x, y):
-        smooth_factor = 10
+        smooth_factor = 5
         if self.mouse.left_button == True:
             self.camera.up += (x - self.mouse.x)/smooth_factor
             self.camera.right += (y - self.mouse.y)/smooth_factor
+            print(x - self.mouse.x, y - self.mouse.y)
         self.mouse.x = x
         self.mouse.y = y
+
+    def onkeyboard(self, key, x, y):
+        if key == b'a':
+            self.camera.x -= 1
+        elif key == b'e':
+            self.camera.x += 1
+        elif key == b'z':
+            self.camera.y += 1
+        elif key == b's':
+            self.camera.y -= 1
+        elif key == b'q':
+            self.camera.z += 1
+        elif key == b'd':
+            self.camera.z -= 1
+        print(self.camera.x, self.camera.y, self.camera.z)
 
 
     def draw(self):
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
 
         shaders.glUseProgram(self.program)
-        glUniformMatrix4fv(self.view_matrix_location, 1, GL_TRUE, self._view_matrix())
+        glUniformMatrix4fv(self.view_matrix_location, 1, GL_FALSE, self._view_matrix())
         for name in self.vertices.keys():
             vertex = self.vertices[name]
             # normal = self.normals[name]
