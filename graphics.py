@@ -55,12 +55,20 @@ class Window:
 
         # load VBOs
         self.scene = scene
-        self.vbos = {}
+        self.vertices = {}
+        self.normals = {}
         for name, geo in self.scene.items():
             vertices = []
+            normals = []
             for prim in geo.primitives:
                 vertices.extend(prim.vertex[prim.vertex_index])
-            self.vbos[name] = vbo.VBO(np.array(vertices))
+                normals.extend(prim.normal[prim.normal_index])
+            self.vertices[name] = vbo.VBO(np.concatenate((np.array(vertices), np.array(normals)), axis=1))
+            # self.normals[name] = vbo.VBO(np.array(normals))
+
+        self.view_matrix_location = glGetUniformLocation(self.program, 'u_view')
+        self.position_location = glGetAttribLocation( self.program, 'a_position' )
+        self.normal_location = glGetAttribLocation(self.program, 'a_normal')
 
         # start main loop
         glutMainLoop()
@@ -103,19 +111,23 @@ class Window:
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
 
         shaders.glUseProgram(self.program)
-        view_matrix_location = glGetUniformLocation(self.program, 'u_view')
-        glUniformMatrix4fv(view_matrix_location, 1, GL_TRUE, self._view_matrix())
-        for vbo in self.vbos.values():
+        glUniformMatrix4fv(self.view_matrix_location, 1, GL_TRUE, self._view_matrix())
+        for name in self.vertices.keys():
+            vertex = self.vertices[name]
+            # normal = self.normals[name]
             try:
-                vbo.bind()
+                vertex.bind()
                 try:
-                    glEnableClientState(GL_VERTEX_ARRAY)
-                    glVertexPointerf(vbo)
-                    glDrawArrays(GL_TRIANGLES, 0, len(vbo))
+                    glEnableVertexAttribArray(self.position_location)
+                    glEnableVertexAttribArray(self.normal_location)
+                    glVertexAttribPointer(self.position_location, 3, GL_FLOAT, False, 24, vertex)
+                    glVertexAttribPointer(self.normal_location, 3, GL_FLOAT, False, 24, vertex+12)
+                    glDrawArrays(GL_TRIANGLES, 0, len(vertex))
                 finally:
-                    glDisableClientState(GL_VERTEX_ARRAY)
+                    glDisableVertexAttribArray(self.normal_location)
+                    glDisableVertexAttribArray(self.position_location)
             finally:
-                vbo.unbind()
+                vertex.unbind()
         shaders.glUseProgram(0)
 
 
