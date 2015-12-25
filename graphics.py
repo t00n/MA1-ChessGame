@@ -59,7 +59,8 @@ class Window:
         self.scene = scene
         self.vertices = {}
         self.normals = {}
-        for name, geo in self.scene.items():
+        for name, obj in self.scene.items():
+            geo = obj.geometry
             vertices = []
             normals = []
             for prim in geo.primitives:
@@ -125,27 +126,29 @@ class Window:
         print(self.camera.x, self.camera.y, self.camera.z)
 
 
+    def _draw(self, name):
+        vertex = self.vertices[name]
+        # normal = self.normals[name]
+        try:
+            vertex.bind()
+            try:
+                glEnableVertexAttribArray(self.position_location)
+                glEnableVertexAttribArray(self.normal_location)
+                glVertexAttribPointer(self.position_location, 3, GL_FLOAT, False, 24, vertex)
+                glVertexAttribPointer(self.normal_location, 3, GL_FLOAT, False, 24, vertex+12)
+                glDrawArrays(GL_TRIANGLES, 0, len(vertex))
+            finally:
+                glDisableVertexAttribArray(self.normal_location)
+                glDisableVertexAttribArray(self.position_location)
+        finally:
+            vertex.unbind()
+
     def draw(self):
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
 
         shaders.glUseProgram(self.program)
         glUniformMatrix4fv(self.view_matrix_location, 1, GL_FALSE, self._view_matrix())
-        for name in self.vertices.keys():
-            vertex = self.vertices[name]
-            # normal = self.normals[name]
-            try:
-                vertex.bind()
-                try:
-                    glEnableVertexAttribArray(self.position_location)
-                    glEnableVertexAttribArray(self.normal_location)
-                    glVertexAttribPointer(self.position_location, 3, GL_FLOAT, False, 24, vertex)
-                    glVertexAttribPointer(self.normal_location, 3, GL_FLOAT, False, 24, vertex+12)
-                    glDrawArrays(GL_TRIANGLES, 0, len(vertex))
-                finally:
-                    glDisableVertexAttribArray(self.normal_location)
-                    glDisableVertexAttribArray(self.position_location)
-            finally:
-                vertex.unbind()
+        self._draw('BlackKnight')
         shaders.glUseProgram(0)
 
 
