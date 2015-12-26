@@ -4,4 +4,5 @@ from dataloader import geometries
 
 
 if __name__ == '__main__':
-    window = Window(geometries)
+    board = Chessboard()
+    window = Window(geometries, board)

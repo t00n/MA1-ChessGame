@@ -13,7 +13,7 @@ void main(void) {
     vec3 position = vec3(vec4(v_position, 1));
 
     // Calculate the vector from this pixels surface to the light source
-    vec3 surfaceToLight = vec3(0,10,0) - position;
+    vec3 surfaceToLight = vec3(0,10,10) - position;
 
     // Calculate the cosine of the angle of incidence (brightness)
     float brightness = dot(normal, surfaceToLight) /

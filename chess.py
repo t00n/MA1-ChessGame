@@ -164,6 +164,12 @@ class Chessboard:
             res += '\n'
         return res
 
+    def __iter__(self):
+        for i in range(8):
+            for j in range(8):
+                if self.board[j][i] != None:
+                    yield self.board[j][i]
+
     def king_in_check(self, color):
         for i in range(8):
             for j in range(8):

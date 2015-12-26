@@ -8,6 +8,8 @@ from vispy.util.transforms import *
 from util import look_at, normalize
 import math
 
+from chess import King, Queen, Bishop, Knight, Rook, Pawn, Color
+
 class Mouse:
     def __init__(self):
         self.left_button = False
@@ -18,9 +20,9 @@ class Mouse:
 
 class Camera:
     def __init__(self):
-        self.x = 50
-        self.y = 50
-        self.z = 50
+        self.x = 20
+        self.y = 20
+        self.z = 20
 
     @property
     def direction(self):
@@ -49,7 +51,8 @@ class Camera:
         self.z *= previous_norm / new_norm
 
 class Window:
-    def __init__(self, geometries, width=1366, height=768):
+    def __init__(self, geometries, board, width=1366, height=768):
+        self.board = board
         self.width = width
         self.height = height
         self.camera = Camera()
@@ -90,6 +93,7 @@ class Window:
 
         # get variables location
         self.view_matrix_location = glGetUniformLocation(self.program, 'u_view')
+        self.model_matrix_location = glGetUniformLocation(self.program, 'u_model')
         self.position_location = glGetAttribLocation( self.program, 'a_position' )
         self.normal_location = glGetAttribLocation(self.program, 'a_normal')
 
@@ -130,8 +134,10 @@ class Window:
         self.mouse.x = x
         self.mouse.y = y
 
-    def _draw(self, name):
+    def _draw(self, name, position=(0,0)):
         vertex = self.VBOs[name]
+        model = translate([position[0]*5, 0, position[1]*5])
+        glUniformMatrix4fv(self.model_matrix_location, 1, GL_FALSE, model)
         try:
             vertex.bind()
             try:
@@ -151,7 +157,38 @@ class Window:
 
         shaders.glUseProgram(self.program)
         glUniformMatrix4fv(self.view_matrix_location, 1, GL_FALSE, self._view_matrix())
-        self._draw('BlackKing')
+        self._draw('Chessboard')
+        for cell in self.board:
+            if isinstance(cell, King):
+                if cell.color == Color.WHITE:
+                    self._draw('WhiteKing', cell.position)
+                else:
+                    self._draw('BlackKing', cell.position)
+            elif isinstance(cell, Queen):
+                if cell.color == Color.WHITE:
+                    self._draw('WhiteQueen', cell.position)
+                else:
+                    self._draw('BlackQueen', cell.position)
+            elif isinstance(cell, Bishop):
+                if cell.color == Color.WHITE:
+                    self._draw('WhiteBishop', cell.position)
+                else:
+                    self._draw('BlackBishop', cell.position)
+            elif isinstance(cell, Knight):
+                if cell.color == Color.WHITE:
+                    self._draw('WhiteKnight', cell.position)
+                else:
+                    self._draw('BlackKnight', cell.position)
+            elif isinstance(cell, Rook):
+                if cell.color == Color.WHITE:
+                    self._draw('WhiteRook', cell.position)
+                else:
+                    self._draw('BlackRook', cell.position)
+            elif isinstance(cell, Pawn):
+                if cell.color == Color.WHITE:
+                    self._draw('WhitePawn', cell.position)
+                else:
+                    self._draw('BlackPawn', cell.position)
         shaders.glUseProgram(0)
 
         glutSwapBuffers()
