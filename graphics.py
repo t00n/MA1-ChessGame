@@ -67,6 +67,7 @@ class Window:
         glutMouseFunc(self._onclick)
         glutMotionFunc(self._onmouse)
         glutPassiveMotionFunc(self._onmouse)
+        glutKeyboardFunc(self._onkeyboard)
         glutDisplayFunc(self.draw)
         glutIdleFunc(self.draw)
 
@@ -133,6 +134,21 @@ class Window:
             self.camera.go_up(dy)
         self.mouse.x = x
         self.mouse.y = y
+
+    def _onkeyboard(self, key, x, y):
+        step = 0.5
+        if key == b'q':
+            self.camera.x += step
+        elif key == b'd':
+            self.camera.x -= step
+        elif key == b'z':
+            self.camera.y += step
+        elif key == b's':
+            self.camera.y -= step
+        elif key == b'a':
+            self.camera.z += step
+        elif key == b'e':
+            self.camera.z -= step
 
     def _draw(self, name, position=(0,0)):
         vertex = self.VBOs[name]
