@@ -6,6 +6,7 @@ from OpenGL.GLUT.freeglut import *
 import numpy as np
 from vispy.util.transforms import *
 from util import look_at
+import math
 
 class MouseState:
     def __init__(self):
@@ -20,8 +21,14 @@ class Camera:
         self.x = 0
         self.y = 10
         self.z = 20
-        self.up = 0
-        self.right = 0
+
+    @property
+    def direction(self):
+        return (-self.x, -self.y, -self.z)
+
+    @property
+    def horizontal_angle(self):
+        return math.sin()
 
 class Window:
     def __init__(self, scene, width=1366, height=768):
@@ -42,7 +49,7 @@ class Window:
         glutPassiveMotionFunc(self.onmouse)
         glutKeyboardFunc(self.onkeyboard)
         self.mouse = MouseState()
-        # glutIdleFunc(self.draw)
+        glutIdleFunc(self.draw)
 
         # load shaders
         VERTEX_SHADER = shaders.compileShader(open('shaders/obj.vs').read(), GL_VERTEX_SHADER)
@@ -59,8 +66,7 @@ class Window:
         self.scene = scene
         self.vertices = {}
         self.normals = {}
-        for name, obj in self.scene.items():
-            geo = obj.geometry
+        for name, geo in self.scene.items():
             vertices = []
             normals = []
             for prim in geo.primitives:
@@ -104,8 +110,8 @@ class Window:
     def onmouse(self, x, y):
         smooth_factor = 5
         if self.mouse.left_button == True:
-            self.camera.right += (x - self.mouse.x)/smooth_factor
-            self.camera.up += (y - self.mouse.y)/smooth_factor
+            dx = (x - self.mouse.x)/smooth_factor
+            dy = (y - self.mouse.y)/smooth_factor
             print(x - self.mouse.x, y - self.mouse.y)
         self.mouse.x = x
         self.mouse.y = y
@@ -151,6 +157,4 @@ class Window:
         self._draw('BlackKnight')
         shaders.glUseProgram(0)
 
-
         glutSwapBuffers()
-        glutPostRedisplay();
