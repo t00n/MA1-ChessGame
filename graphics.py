@@ -5,7 +5,7 @@ from OpenGL.GLUT import *
 from OpenGL.GLUT.freeglut import *
 import numpy as np
 from vispy.util.transforms import *
-from util import look_at
+from util import look_at, normalize
 import math
 
 class MouseState:
@@ -26,9 +26,18 @@ class Camera:
     def direction(self):
         return (-self.x, -self.y, -self.z)
 
-    @property
-    def horizontal_angle(self):
-        return math.sin()
+    def go_right(self, dist=0.1):
+        perpendicular = normalize([-self.z, self.x])
+        previous_norm = np.linalg.norm([self.x, self.z])
+        self.x += perpendicular[0] * dist
+        self.z += perpendicular[1] * dist
+        new_norm = np.linalg.norm([self.x, self.z])
+        self.x *= previous_norm / new_norm
+        self.z *= previous_norm / new_norm
+        print(np.linalg.norm([self.x, self.z]))
+
+    def go_up(self, dist=0.1):
+        perpendicular = normalize([])
 
 class Window:
     def __init__(self, scene, width=1366, height=768):
@@ -112,7 +121,8 @@ class Window:
         if self.mouse.left_button == True:
             dx = (x - self.mouse.x)/smooth_factor
             dy = (y - self.mouse.y)/smooth_factor
-            print(x - self.mouse.x, y - self.mouse.y)
+            self.camera.go_right(dx)
+            self.camera.go_up(dy)
         self.mouse.x = x
         self.mouse.y = y
 
