@@ -8,7 +8,7 @@ from vispy.util.transforms import *
 from util import look_at, normalize
 import math
 
-class MouseState:
+class Mouse:
     def __init__(self):
         self.left_button = False
         self.middle_button = False
@@ -18,9 +18,9 @@ class MouseState:
 
 class Camera:
     def __init__(self):
-        self.x = 0
-        self.y = 10
-        self.z = 20
+        self.x = 50
+        self.y = 50
+        self.z = 50
 
     @property
     def direction(self):
@@ -49,8 +49,7 @@ class Camera:
         self.z *= previous_norm / new_norm
 
 class Window:
-    def __init__(self, scene, width=1366, height=768):
-        self.scene = scene
+    def __init__(self, geometries, width=1366, height=768):
         self.width = width
         self.height = height
         self.camera = Camera()
@@ -61,12 +60,11 @@ class Window:
         glutInitWindowSize(self.width, self.height)
         glutInitWindowPosition(0, 0)
         self.window = glutCreateWindow('Chess Game')
+        self.mouse = Mouse()
+        glutMouseFunc(self._onclick)
+        glutMotionFunc(self._onmouse)
+        glutPassiveMotionFunc(self._onmouse)
         glutDisplayFunc(self.draw)
-        glutMouseFunc(self.onclick)
-        glutMotionFunc(self.onmouse)
-        glutPassiveMotionFunc(self.onmouse)
-        glutKeyboardFunc(self.onkeyboard)
-        self.mouse = MouseState()
         glutIdleFunc(self.draw)
 
         # load shaders
@@ -81,23 +79,20 @@ class Window:
         shaders.glUseProgram(0)
 
         # load VBOs
-        self.scene = scene
-        self.vertices = {}
-        self.normals = {}
-        for name, geo in self.scene.items():
+        self.VBOs = {}
+        for name, geo in geometries.items():
             vertices = []
             normals = []
             for prim in geo.primitives:
                 vertices.extend(prim.vertex[prim.vertex_index])
                 normals.extend(prim.normal[prim.normal_index])
-            self.vertices[name] = vbo.VBO(np.concatenate((np.array(vertices)[:,[0,2,1]], np.array(normals)[:,[0,2,1]]), axis=1))
-            # self.normals[name] = vbo.VBO(np.array(normals))
+            self.VBOs[name] = vbo.VBO(np.concatenate((np.array(vertices)[:,[0,2,1]], np.array(normals)[:,[0,2,1]]), axis=1))
 
+        # get variables location
         self.view_matrix_location = glGetUniformLocation(self.program, 'u_view')
         self.position_location = glGetAttribLocation( self.program, 'a_position' )
         self.normal_location = glGetAttribLocation(self.program, 'a_normal')
 
-        # start main loop
         glutMainLoop()
 
     def _projection_matrix(self):
@@ -107,7 +102,7 @@ class Window:
     def _view_matrix(self):
         return look_at((self.camera.x, self.camera.y, self.camera.z), (0,0,0), (0,1,0))
 
-    def onclick(self, button, state, x, y):
+    def _onclick(self, button, state, x, y):
         if state == GLUT_DOWN:
             if button == GLUT_LEFT_BUTTON:
                 self.mouse.left_button = True
@@ -125,7 +120,7 @@ class Window:
         self.mouse.x = x
         self.mouse.y = y
 
-    def onmouse(self, x, y):
+    def _onmouse(self, x, y):
         smooth_factor = 5
         if self.mouse.left_button == True:
             dx = (x - self.mouse.x)/smooth_factor
@@ -135,25 +130,8 @@ class Window:
         self.mouse.x = x
         self.mouse.y = y
 
-    def onkeyboard(self, key, x, y):
-        if key == b'a':
-            self.camera.x -= 0.1
-        elif key == b'e':
-            self.camera.x += 0.1
-        elif key == b'z':
-            self.camera.y += 0.1
-        elif key == b's':
-            self.camera.y -= 0.1
-        elif key == b'q':
-            self.camera.z += 0.1
-        elif key == b'd':
-            self.camera.z -= 0.1
-        print(self.camera.x, self.camera.y, self.camera.z)
-
-
     def _draw(self, name):
-        vertex = self.vertices[name]
-        # normal = self.normals[name]
+        vertex = self.VBOs[name]
         try:
             vertex.bind()
             try:
@@ -173,7 +151,7 @@ class Window:
 
         shaders.glUseProgram(self.program)
         glUniformMatrix4fv(self.view_matrix_location, 1, GL_FALSE, self._view_matrix())
-        self._draw('BlackKnight')
+        self._draw('BlackKing')
         shaders.glUseProgram(0)
 
         glutSwapBuffers()
