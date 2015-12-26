@@ -34,10 +34,19 @@ class Camera:
         new_norm = np.linalg.norm([self.x, self.z])
         self.x *= previous_norm / new_norm
         self.z *= previous_norm / new_norm
-        print(np.linalg.norm([self.x, self.z]))
 
     def go_up(self, dist=0.1):
-        perpendicular = normalize([])
+        direction = normalize(self.direction)
+        previous_norm = np.linalg.norm([self.x, self.y, self.z])
+        self.x += direction[0] * dist
+        self.y += dist
+        self.z += direction[2] * dist
+        if self.y < 1:
+            self.y = 1
+        new_norm = np.linalg.norm([self.x, self.y, self.z])
+        self.x *= previous_norm / new_norm
+        self.y *= previous_norm / new_norm
+        self.z *= previous_norm / new_norm
 
 class Window:
     def __init__(self, scene, width=1366, height=768):
