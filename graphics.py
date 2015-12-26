@@ -85,12 +85,7 @@ class Window:
         # load VBOs
         self.VBOs = {}
         for name, geo in geometries.items():
-            vertices = []
-            normals = []
-            for prim in geo.primitives:
-                vertices.extend(prim.vertex[prim.vertex_index])
-                normals.extend(prim.normal[prim.normal_index])
-            self.VBOs[name] = vbo.VBO(np.concatenate((np.array(vertices)[:,[0,2,1]], np.array(normals)[:,[0,2,1]]), axis=1))
+            self.VBOs[name] = vbo.VBO(np.concatenate((np.array(geo.vertices), np.array(geo.normals)), axis=1))
 
         # get variables location
         self.view_matrix_location = glGetUniformLocation(self.program, 'u_view')
@@ -150,20 +145,20 @@ class Window:
         elif key == b'e':
             self.camera.z -= step
 
-    def _draw(self, name, position=(0,0)):
+    def _draw(self, name, position=(0,0), y=0):
         vertex = self.VBOs[name]
-        model = translate([position[0]*5, 0, position[1]*5])
+        model = translate([(position[0]-4)*5, y*5, (position[1]-4)*5])
         glUniformMatrix4fv(self.model_matrix_location, 1, GL_FALSE, model)
         try:
             vertex.bind()
             try:
                 glEnableVertexAttribArray(self.position_location)
-                glEnableVertexAttribArray(self.normal_location)
+                # glEnableVertexAttribArray(self.normal_location)
                 glVertexAttribPointer(self.position_location, 3, GL_FLOAT, False, 24, vertex)
-                glVertexAttribPointer(self.normal_location, 3, GL_FLOAT, False, 24, vertex+12)
+                # glVertexAttribPointer(self.normal_location, 3, GL_FLOAT, False, 24, vertex+12)
                 glDrawArrays(GL_TRIANGLES, 0, len(vertex))
             finally:
-                glDisableVertexAttribArray(self.normal_location)
+                # glDisableVertexAttribArray(self.normal_location)
                 glDisableVertexAttribArray(self.position_location)
         finally:
             vertex.unbind()
@@ -173,7 +168,7 @@ class Window:
 
         shaders.glUseProgram(self.program)
         glUniformMatrix4fv(self.view_matrix_location, 1, GL_FALSE, self._view_matrix())
-        self._draw('Chessboard')
+        self._draw('Chessboard', y=-5)
         for cell in self.board:
             if isinstance(cell, King):
                 if cell.color == Color.WHITE:

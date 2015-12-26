@@ -21,5 +21,5 @@ void main(void) {
 
     brightness = max(min(brightness,1.0),0.0);
 
-    gl_FragColor = brightness * vec4(1.0,1.0,1.0,1.0);
+    gl_FragColor = vec4(1.0,1.0,1.0,1.0);
 }
