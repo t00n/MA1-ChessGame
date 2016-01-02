@@ -4,6 +4,7 @@ varying vec3 v_normal;
 
 uniform mat4 u_view;
 uniform mat4 u_projection;
+uniform vec3 u_light_position;
 
 void main(void) {
     // Calculate normal in world coordinates
@@ -13,7 +14,7 @@ void main(void) {
     vec3 position = vec3(vec4(v_position, 1));
 
     // Calculate the vector from this pixels surface to the light source
-    vec3 surfaceToLight = vec3(0,10,10) - position;
+    vec3 surfaceToLight = u_light_position - position;
 
     // Calculate the cosine of the angle of incidence (brightness)
     float brightness = dot(normal, surfaceToLight) /
@@ -21,5 +22,5 @@ void main(void) {
 
     brightness = max(min(brightness,1.0),0.0);
 
-    gl_FragColor = vec4(1.0,1.0,1.0,1.0);
+    gl_FragColor = brightness * vec4(1.0,1.0,1.0,1.0);
 }

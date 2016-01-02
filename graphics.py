@@ -50,12 +50,23 @@ class Camera:
         self.y *= previous_norm / new_norm
         self.z *= previous_norm / new_norm
 
+class Light:
+    def __init__(self):
+        self.x = 10
+        self.y = 10
+        self.z = 0
+
+    @property
+    def position(self):
+        return [self.x, self.y, self.z]
+
 class Window:
     def __init__(self, geometries, board, width=1366, height=768):
         self.board = board
         self.width = width
         self.height = height
         self.camera = Camera()
+        self.light = Light()
 
         # init window and context
         glutInit()
@@ -90,6 +101,7 @@ class Window:
         # get variables location
         self.view_matrix_location = glGetUniformLocation(self.program, 'u_view')
         self.model_matrix_location = glGetUniformLocation(self.program, 'u_model')
+        self.light_position_location = glGetUniformLocation(self.program, 'u_light_position')
         self.position_location = glGetAttribLocation( self.program, 'a_position' )
         self.normal_location = glGetAttribLocation(self.program, 'a_normal')
 
@@ -153,12 +165,12 @@ class Window:
             vertex.bind()
             try:
                 glEnableVertexAttribArray(self.position_location)
-                # glEnableVertexAttribArray(self.normal_location)
+                glEnableVertexAttribArray(self.normal_location)
                 glVertexAttribPointer(self.position_location, 3, GL_FLOAT, False, 24, vertex)
-                # glVertexAttribPointer(self.normal_location, 3, GL_FLOAT, False, 24, vertex+12)
+                glVertexAttribPointer(self.normal_location, 3, GL_FLOAT, False, 24, vertex+12)
                 glDrawArrays(GL_TRIANGLES, 0, len(vertex))
             finally:
-                # glDisableVertexAttribArray(self.normal_location)
+                glDisableVertexAttribArray(self.normal_location)
                 glDisableVertexAttribArray(self.position_location)
         finally:
             vertex.unbind()
@@ -168,6 +180,7 @@ class Window:
 
         shaders.glUseProgram(self.program)
         glUniformMatrix4fv(self.view_matrix_location, 1, GL_FALSE, self._view_matrix())
+        glUniform3fv(self.light_position_location, 1, self.light.position)
         self._draw('Chessboard', y=-5)
         for cell in self.board:
             if isinstance(cell, King):
