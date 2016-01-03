@@ -10,6 +10,16 @@ import math
 
 from chess import King, Queen, Bishop, Knight, Rook, Pawn, Color
 
+class MixinHasPosition:
+    def __init__(self, x, y, z):
+        self.x = x
+        self.y = y 
+        self.z = z
+
+    @property
+    def position(self):
+        return [self.x, self.y, self.z]
+
 class Mouse:
     def __init__(self):
         self.left_button = False
@@ -18,11 +28,9 @@ class Mouse:
         self.x = 0
         self.y = 0
 
-class Camera:
+class Camera(MixinHasPosition):
     def __init__(self):
-        self.x = 20
-        self.y = 20
-        self.z = 20
+        super(Camera, self).__init__(20,20,20)
 
     @property
     def direction(self):
@@ -50,15 +58,9 @@ class Camera:
         self.y *= previous_norm / new_norm
         self.z *= previous_norm / new_norm
 
-class Light:
+class Light(MixinHasPosition):
     def __init__(self):
-        self.x = 10
-        self.y = 10
-        self.z = 0
-
-    @property
-    def position(self):
-        return [self.x, self.y, self.z]
+        super(Light, self).__init__(10,10,0)
 
 class Window:
     def __init__(self, geometries, board, width=1366, height=768):
