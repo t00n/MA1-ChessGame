@@ -105,10 +105,14 @@ class Window:
         self.position_location = glGetAttribLocation( self.program, 'a_position' )
         self.normal_location = glGetAttribLocation(self.program, 'a_normal')
 
+        glEnable(GL_CULL_FACE)
+        glCullFace(GL_FRONT)
+        glEnable(GL_DEPTH_TEST)
+
         glutMainLoop()
 
     def _projection_matrix(self):
-        return perspective(90, self.width/self.height, 0.1, 100)
+        return perspective(60, self.width/self.height, 0.1, 100)
         # return ortho(-10, 10, -10, 10, 0, 10)
 
     def _view_matrix(self):
