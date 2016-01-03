@@ -121,7 +121,7 @@ class Window:
         glutMainLoop()
 
     def _projection_matrix(self):
-        return perspective(60, self.width/self.height, 0.1, 100)
+        return perspective(45, self.width/self.height, 0.1, 100)
         # return ortho(-10, 10, -10, 10, 0, 10)
 
     def _view_matrix(self):

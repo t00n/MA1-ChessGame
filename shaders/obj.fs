@@ -11,6 +11,7 @@ uniform vec3 u_light_position;
 
 void main(void) {
     mat3 normalMatrix = transpose(inverse(mat3(u_model)));
+
     // Calculate normal in world coordinates
     vec3 normal = normalize(normalMatrix * v_normal);
 
@@ -18,13 +19,12 @@ void main(void) {
     vec3 position = vec3(u_model * vec4(v_position, 1));
 
     // Calculate the vector from this pixels surface to the light source
-    vec3 surfaceToLight = u_light_position - position;
+    vec3 surfaceToLight = normalize(u_light_position - position);
 
-    // Calculate the cosine of the angle of incidence (brightness)
-    float brightness = dot(normal, surfaceToLight) /
-                      (length(surfaceToLight) * length(normal));
+    // Calculate the cosine of the angle of incidence
+    float diffuse_coef = dot(normal, surfaceToLight);
 
-    brightness = clamp(brightness, 0, 1);
+    diffuse_coef = clamp(diffuse_coef, 0, 1);
 
-    gl_FragColor = brightness * u_diffuse * vec4(1.0,1.0,1.0,1.0);
+    gl_FragColor = diffuse_coef * u_diffuse * vec4(1.0,1.0,1.0,1.0);
 }
