@@ -2,6 +2,7 @@
 
 varying vec3 v_position;
 varying vec3 v_normal;
+uniform vec4 u_diffuse;
 
 uniform mat4 u_model;
 uniform mat4 u_view;
@@ -25,5 +26,5 @@ void main(void) {
 
     brightness = clamp(brightness, 0, 1);
 
-    gl_FragColor = brightness * vec4(1.0,1.0,1.0,1.0);
+    gl_FragColor = brightness * u_diffuse * vec4(1.0,1.0,1.0,1.0);
 }

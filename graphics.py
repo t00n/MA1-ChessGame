@@ -111,6 +111,7 @@ class Window:
         self.light_position_location = glGetUniformLocation(self.program, 'u_light_position')
         self.position_location = glGetAttribLocation( self.program, 'a_position' )
         self.normal_location = glGetAttribLocation(self.program, 'a_normal')
+        self.diffuse_location = glGetUniformLocation(self.program, 'u_diffuse')
 
         glEnable(GL_CULL_FACE)
         glCullFace(GL_FRONT)
@@ -170,7 +171,10 @@ class Window:
 
     def _draw(self, name, position=(0,0), y=0):
         vbos = self.VBOs[name]
-        for vbo in vbos:
+        for i in range(len(vbos)):
+            vbo = vbos[i]
+            effect = self.geometries[name].materials[i].effect
+            glUniform4fv(self.diffuse_location, 1, effect.diffuse)
             model = translate([(position[0]-4)*5, y*5, (position[1]-4)*5])
             glUniformMatrix4fv(self.model_matrix_location, 1, GL_FALSE, model)
             try:
