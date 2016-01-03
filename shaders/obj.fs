@@ -39,5 +39,5 @@ void main(void) {
     // Ambient component
     vec4 ambient = 0.05 * u_ambient * u_light_intensities;
 
-    gl_FragColor = ambient + diffuse;
+    gl_FragColor = ambient + diffuse + specular;
 }

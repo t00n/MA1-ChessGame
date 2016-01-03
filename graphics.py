@@ -34,6 +34,7 @@ class Camera(MixinHasPosition):
     def __init__(self):
         super(Camera, self).__init__(0,40,-40)
 
+    # camera always looks to origin (0,0,0)
     @property
     def direction(self):
         return (-self.x, -self.y, -self.z)
