@@ -32,7 +32,7 @@ class Mouse:
 
 class Camera(MixinHasPosition):
     def __init__(self):
-        super(Camera, self).__init__(0,20,-20)
+        super(Camera, self).__init__(0,40,-40)
 
     @property
     def direction(self):
