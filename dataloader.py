@@ -11,10 +11,11 @@ class Geometry:
     def __init__(self, geo):
         self.vertices = []
         self.normals = []
+        self.materials = []
         for prim in geo.primitives:
-            self.vertices.extend(prim.vertex[prim.vertex_index][:,[0,2,1]])
-            self.normals.extend(prim.normal[prim.normal_index][:,[0,2,1]])
-            self.material = Material(get_material(prim.material))
+            self.vertices.append(prim.vertex[prim.vertex_index][:,[0,2,1]])
+            self.normals.append(prim.normal[prim.normal_index][:,[0,2,1]])
+            self.materials.append(Material(get_material(prim.material)))
 
 def get_material(symbol):
     for mat in data.materials:

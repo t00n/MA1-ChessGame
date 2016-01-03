@@ -7,6 +7,7 @@ import numpy as np
 from vispy.util.transforms import *
 from util import look_at, normalize
 import math
+from collections import defaultdict
 
 from chess import King, Queen, Bishop, Knight, Rook, Pawn, Color
 
@@ -69,6 +70,7 @@ class Window:
         self.height = height
         self.camera = Camera()
         self.light = Light()
+        self.geometries = geometries
 
         # init window and context
         glutInit()
@@ -96,9 +98,12 @@ class Window:
         shaders.glUseProgram(0)
 
         # load VBOs
-        self.VBOs = {}
+        self.VBOs = defaultdict(lambda: [])
         for name, geo in geometries.items():
-            self.VBOs[name] = vbo.VBO(np.concatenate((np.array(geo.vertices), np.array(geo.normals)), axis=1))
+            for i in range(len(geo.vertices)):
+                vertices = geo.vertices[i]
+                normals = geo.normals[i]
+                self.VBOs[name].append(vbo.VBO(np.concatenate((np.array(vertices), np.array(normals)), axis=1)))
 
         # get variables location
         self.view_matrix_location = glGetUniformLocation(self.program, 'u_view')
@@ -164,22 +169,23 @@ class Window:
             self.camera.z -= step
 
     def _draw(self, name, position=(0,0), y=0):
-        vertex = self.VBOs[name]
-        model = translate([(position[0]-4)*5, y*5, (position[1]-4)*5])
-        glUniformMatrix4fv(self.model_matrix_location, 1, GL_FALSE, model)
-        try:
-            vertex.bind()
+        vbos = self.VBOs[name]
+        for vbo in vbos:
+            model = translate([(position[0]-4)*5, y*5, (position[1]-4)*5])
+            glUniformMatrix4fv(self.model_matrix_location, 1, GL_FALSE, model)
             try:
-                glEnableVertexAttribArray(self.position_location)
-                glEnableVertexAttribArray(self.normal_location)
-                glVertexAttribPointer(self.position_location, 3, GL_FLOAT, False, 24, vertex)
-                glVertexAttribPointer(self.normal_location, 3, GL_FLOAT, False, 24, vertex+12)
-                glDrawArrays(GL_TRIANGLES, 0, len(vertex))
+                vbo.bind()
+                try:
+                    glEnableVertexAttribArray(self.position_location)
+                    glEnableVertexAttribArray(self.normal_location)
+                    glVertexAttribPointer(self.position_location, 3, GL_FLOAT, False, 24, vbo)
+                    glVertexAttribPointer(self.normal_location, 3, GL_FLOAT, False, 24, vbo+12)
+                    glDrawArrays(GL_TRIANGLES, 0, len(vbo))
+                finally:
+                    glDisableVertexAttribArray(self.normal_location)
+                    glDisableVertexAttribArray(self.position_location)
             finally:
-                glDisableVertexAttribArray(self.normal_location)
-                glDisableVertexAttribArray(self.position_location)
-        finally:
-            vertex.unbind()
+                vbo.unbind()
 
     def draw(self):
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
