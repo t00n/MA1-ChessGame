@@ -113,6 +113,7 @@ class Window:
         self.position_location = glGetAttribLocation( self.program, 'a_position' )
         self.normal_location = glGetAttribLocation(self.program, 'a_normal')
         self.diffuse_location = glGetUniformLocation(self.program, 'u_diffuse')
+        self.ambient_location = glGetUniformLocation(self.program, 'u_ambient')
 
         glEnable(GL_CULL_FACE)
         glCullFace(GL_FRONT)
@@ -177,6 +178,7 @@ class Window:
             vbo = vbos[i]
             effect = geo.materials[i].effect
             glUniform4fv(self.diffuse_location, 1, effect.diffuse)
+            glUniform4fv(self.ambient_location, 1, effect.ambient)
             model = reduce(np.dot, [translate([(position[0])*6, 0, (position[1])*6]),
                                     translate(geo.translation),
                                     rotate(geo.rotation[2], [0, 0, 1]),
