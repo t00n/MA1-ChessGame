@@ -22,6 +22,16 @@ class MixinHasPosition:
     def position(self):
         return [self.x, self.y, self.z]
 
+class MixinHasDirection:
+    def __init__(self, x, y, z):
+        self.dir_x = x
+        self.dir_y = y
+        self.dir_z = z
+
+    @property
+    def direction(self):
+        return [self.dir_x, self.dir_y, self.dir_z]
+
 class Mouse:
     def __init__(self):
         self.left_button = False
