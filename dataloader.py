@@ -15,7 +15,7 @@ class Geometry:
             self.vertices.append(prim.vertex[prim.vertex_index][:,[0,2,1]])
             self.normals.append(prim.normal[prim.normal_index][:,[0,2,1]])
             self.materials.append(Material(get_material(prim.material)))
-        self.translation = np.array([-18, 0, -18], dtype=np.float32)
+        self.translation = np.array([-21, 0, -18], dtype=np.float32) # translate to world origin
         self.rotation = np.array([0, 0, 0], dtype=np.float32)
         self.scaling = np.array([1, 1, 1], dtype=np.float32)
 
@@ -41,3 +41,4 @@ for i, node in enumerate(data.scene.nodes):
             geometries[name] = Geometry(child.geometry)
 
 # Adjust some specific things
+geometries['Chessboard'].translation = np.array([0, -15, 0])
