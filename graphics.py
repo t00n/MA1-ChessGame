@@ -8,6 +8,7 @@ from vispy.util.transforms import *
 from util import look_at, normalize
 import math
 from collections import defaultdict
+from functools import reduce
 
 from chess import King, Queen, Bishop, Knight, Rook, Pawn, Color
 
@@ -31,7 +32,7 @@ class Mouse:
 
 class Camera(MixinHasPosition):
     def __init__(self):
-        super(Camera, self).__init__(20,20,20)
+        super(Camera, self).__init__(0,20,-20)
 
     @property
     def direction(self):
@@ -169,13 +170,19 @@ class Window:
         elif key == b'e':
             self.camera.z -= step
 
-    def _draw(self, name, position=(0,0), y=0):
+    def _draw(self, name, position=(0,0), height=0):
         vbos = self.VBOs[name]
+        geo = self.geometries[name]
         for i in range(len(vbos)):
             vbo = vbos[i]
-            effect = self.geometries[name].materials[i].effect
+            effect = geo.materials[i].effect
             glUniform4fv(self.diffuse_location, 1, effect.diffuse)
-            model = translate([(position[0]-4)*5, y*5, (position[1]-4)*5])
+            model = reduce(np.dot, [translate([(position[0])*6, height*5, (position[1])*6]),
+                                    translate(geo.translation),
+                                    rotate(geo.rotation[2], [0, 0, 1]),
+                                    rotate(geo.rotation[1], [0, 1, 0]),
+                                    rotate(geo.rotation[0], [1, 0, 0]),
+                                    scale(geo.scaling)])
             glUniformMatrix4fv(self.model_matrix_location, 1, GL_FALSE, model)
             try:
                 vbo.bind()
@@ -197,7 +204,7 @@ class Window:
         shaders.glUseProgram(self.program)
         glUniformMatrix4fv(self.view_matrix_location, 1, GL_FALSE, self._view_matrix())
         glUniform3fv(self.light_position_location, 1, self.light.position)
-        self._draw('Chessboard', y=-5)
+        self._draw('Chessboard', [3.5, 3], -3)
         for cell in self.board:
             if isinstance(cell, King):
                 if cell.color == Color.WHITE:

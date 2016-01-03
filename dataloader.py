@@ -1,7 +1,6 @@
 from collada import *
 from collada.scene import GeometryNode
-
-data = Collada('data/chessboard+man.dae')
+import numpy as np
 
 class Material:
     def __init__(self, mat):
@@ -16,6 +15,9 @@ class Geometry:
             self.vertices.append(prim.vertex[prim.vertex_index][:,[0,2,1]])
             self.normals.append(prim.normal[prim.normal_index][:,[0,2,1]])
             self.materials.append(Material(get_material(prim.material)))
+        self.translation = np.array([-18, 0, -18], dtype=np.float32)
+        self.rotation = np.array([0, 0, 0], dtype=np.float32)
+        self.scaling = np.array([1, 1, 1], dtype=np.float32)
 
 def get_material(symbol):
     for mat in data.materials:
@@ -29,9 +31,13 @@ def get_effect(id):
             return effect
     return None
 
+# Load all geometries from Collada and put them in our own structure. Load materials and effects too
+data = Collada('data/chessboard+man.dae')
 geometries = {}
 for i, node in enumerate(data.scene.nodes):
     for child in node.children:
         if isinstance(child, GeometryNode):
             name = "".join(node.id.split('_')[:2])
             geometries[name] = Geometry(child.geometry)
+
+# Adjust some specific things
