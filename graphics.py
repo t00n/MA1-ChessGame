@@ -110,10 +110,13 @@ class Window:
         self.view_matrix_location = glGetUniformLocation(self.program, 'u_view')
         self.model_matrix_location = glGetUniformLocation(self.program, 'u_model')
         self.light_position_location = glGetUniformLocation(self.program, 'u_light_position')
+        self.camera_position_location = glGetUniformLocation(self.program, 'u_camera_position')
         self.position_location = glGetAttribLocation( self.program, 'a_position' )
         self.normal_location = glGetAttribLocation(self.program, 'a_normal')
         self.diffuse_location = glGetUniformLocation(self.program, 'u_diffuse')
         self.ambient_location = glGetUniformLocation(self.program, 'u_ambient')
+        self.specular_location = glGetUniformLocation(self.program, 'u_specular')
+        self.shininess_location = glGetUniformLocation(self.program, 'u_shininess')
 
         glEnable(GL_CULL_FACE)
         glCullFace(GL_FRONT)
@@ -179,6 +182,8 @@ class Window:
             effect = geo.materials[i].effect
             glUniform4fv(self.diffuse_location, 1, effect.diffuse)
             glUniform4fv(self.ambient_location, 1, effect.ambient)
+            glUniform4fv(self.specular_location, 1, effect.specular)
+            glUniform1f(self.shininess_location, effect.shininess)
             model = reduce(np.dot, [translate([(position[0])*6, 0, (position[1])*6]),
                                     translate(geo.translation),
                                     rotate(geo.rotation[2], [0, 0, 1]),
@@ -206,6 +211,7 @@ class Window:
         shaders.glUseProgram(self.program)
         glUniformMatrix4fv(self.view_matrix_location, 1, GL_FALSE, self._view_matrix())
         glUniform3fv(self.light_position_location, 1, self.light.position)
+        glUniform3fv(self.camera_position_location, 1, self.camera.position)
         self._draw('Chessboard')
         for cell in self.board:
             if isinstance(cell, King):
