@@ -64,6 +64,18 @@ class Camera(MixinHasPosition):
 class Light(MixinHasPosition):
     def __init__(self):
         super(Light, self).__init__(10,10,0)
+        self._intensities = [1,1,1,1]
+
+    def intensities():
+        doc = "The intensities of the lights."
+        def fget(self):
+            return self._intensities
+        def fset(self, value):
+            self._intensities = value
+        def fdel(self):
+            del self._intensities
+        return locals()
+    intensities = property(**intensities())
 
 class Window:
     def __init__(self, geometries, board, width=1366, height=768):
@@ -111,6 +123,7 @@ class Window:
         self.view_matrix_location = glGetUniformLocation(self.program, 'u_view')
         self.model_matrix_location = glGetUniformLocation(self.program, 'u_model')
         self.light_position_location = glGetUniformLocation(self.program, 'u_light_position')
+        self.light_intensities_location = glGetUniformLocation(self.program, 'u_light_intensities')
         self.camera_position_location = glGetUniformLocation(self.program, 'u_camera_position')
         self.position_location = glGetAttribLocation( self.program, 'a_position' )
         self.normal_location = glGetAttribLocation(self.program, 'a_normal')
@@ -212,6 +225,7 @@ class Window:
         shaders.glUseProgram(self.program)
         glUniformMatrix4fv(self.view_matrix_location, 1, GL_FALSE, self._view_matrix())
         glUniform3fv(self.light_position_location, 1, self.light.position)
+        glUniform4fv(self.light_intensities_location, 1, self.light.intensities)
         glUniform3fv(self.camera_position_location, 1, self.camera.position)
         self._draw('Chessboard')
         for cell in self.board:
