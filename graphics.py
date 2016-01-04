@@ -94,11 +94,11 @@ class Window(QMainWindow):
     def __init__(self, geometries, board, width=1366, height=768):
         super(Window, self).__init__()
         self.board = board
-        self.width = width
-        self.height = height
         self.setWindowTitle("Chess Game")
+        self.resize(QDesktopWidget().availableGeometry(self).size())
 
         self.glWidget = GLWidget(geometries, self)
+        self.setCentralWidget(self.glWidget)
 
 class GLWidget(QGLWidget):
     def __init__(self, geometries, parent):
