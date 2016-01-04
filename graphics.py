@@ -3,6 +3,9 @@ from OpenGL.GL import shaders
 from OpenGL.arrays import *
 from OpenGL.GLUT import *
 from OpenGL.GLUT.freeglut import *
+from PyQt4.QtGui import *
+from PyQt4.QtOpenGL import *
+from PyQt4 import QtCore
 import numpy as np
 from vispy.util.transforms import *
 from util import look_at, normalize
@@ -87,29 +90,28 @@ class Light(MixinHasPosition):
         return locals()
     intensities = property(**intensities())
 
-class Window:
+class Window(QMainWindow):
     def __init__(self, geometries, board, width=1366, height=768):
+        super(Window, self).__init__()
         self.board = board
         self.width = width
         self.height = height
+        self.setWindowTitle("Chess Game")
+
+        self.glWidget = GLWidget(geometries, self)
+
+class GLWidget(QGLWidget):
+    def __init__(self, geometries, parent):
+        super(GLWidget, self).__init__(parent)
         self.camera = Camera()
         self.light = Light()
-        self.geometries = geometries
-
-        # init window and context
-        glutInit()
-        glutInitDisplayMode(GLUT_RGBA | GLUT_ALPHA | GLUT_DOUBLE | GLUT_DEPTH)
-        glutInitWindowSize(self.width, self.height)
-        glutInitWindowPosition(0, 0)
-        self.window = glutCreateWindow('Chess Game')
         self.mouse = Mouse()
+        self.geometries = geometries
+        # self.setSizePolicy(QSizePolicy.Maximum, QSizePolicy.Maximum)
+
+    def initializeGL(self):
+        # init window and context
         glClearColor(0.5, 0.5, 1.0, 1.0)
-        glutMouseFunc(self._onclick)
-        glutMotionFunc(self._onmouse)
-        glutPassiveMotionFunc(self._onmouse)
-        glutKeyboardFunc(self._onkeyboard)
-        glutDisplayFunc(self.draw)
-        glutIdleFunc(self.draw)
 
         # load shaders
         VERTEX_SHADER = shaders.compileShader(open('shaders/obj.vs').read(), GL_VERTEX_SHADER)
@@ -124,7 +126,7 @@ class Window:
 
         # load VBOs
         self.VBOs = defaultdict(lambda: [])
-        for name, geo in geometries.items():
+        for name, geo in self.geometries.items():
             for i in range(len(geo.vertices)):
                 vertices = geo.vertices[i]
                 normals = geo.normals[i]
@@ -147,58 +149,6 @@ class Window:
         glEnable(GL_CULL_FACE)
         glCullFace(GL_FRONT)
         glEnable(GL_DEPTH_TEST)
-
-        glutMainLoop()
-
-    def _projection_matrix(self):
-        return perspective(45, self.width/self.height, 0.1, 100)
-        # return ortho(-10, 10, -10, 10, 0, 10)
-
-    def _view_matrix(self):
-        return look_at((self.camera.x, self.camera.y, self.camera.z), (0,0,0), (0,1,0))
-
-    def _onclick(self, button, state, x, y):
-        if state == GLUT_DOWN:
-            if button == GLUT_LEFT_BUTTON:
-                self.mouse.left_button = True
-            elif button == GLUT_MIDDLE_BUTTON:
-                self.mouse.middle_button = True
-            elif button == GLUT_RIGHT_BUTTON:
-                self.mouse.right_button = True
-        elif state == GLUT_UP:
-            if button == GLUT_LEFT_BUTTON:
-                self.mouse.left_button = False
-            elif button == GLUT_MIDDLE_BUTTON:
-                self.mouse.middle_button = False
-            elif button == GLUT_RIGHT_BUTTON:
-                self.mouse.right_button = False
-        self.mouse.x = x
-        self.mouse.y = y
-
-    def _onmouse(self, x, y):
-        smooth_factor = 5
-        if self.mouse.left_button == True:
-            dx = (x - self.mouse.x)/smooth_factor
-            dy = (y - self.mouse.y)/smooth_factor
-            self.camera.go_right(dx)
-            self.camera.go_up(dy)
-        self.mouse.x = x
-        self.mouse.y = y
-
-    def _onkeyboard(self, key, x, y):
-        step = 0.5
-        if key == b'q':
-            self.camera.x += step
-        elif key == b'd':
-            self.camera.x -= step
-        elif key == b'z':
-            self.camera.y += step
-        elif key == b's':
-            self.camera.y -= step
-        elif key == b'a':
-            self.camera.z += step
-        elif key == b'e':
-            self.camera.z -= step
 
     def _draw(self, name, position=(0,0)):
         vbos = self.VBOs[name]
@@ -232,7 +182,14 @@ class Window:
             finally:
                 vbo.unbind()
 
-    def draw(self):
+    def _projection_matrix(self):
+        return perspective(45, self.width()/self.height(), 0.1, 100)
+        # return ortho(-10, 10, -10, 10, 0, 10)
+
+    def _view_matrix(self):
+        return look_at((self.camera.x, self.camera.y, self.camera.z), (0,0,0), (0,1,0))
+
+    def paintGL(self):
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
 
         shaders.glUseProgram(self.program)
@@ -241,7 +198,7 @@ class Window:
         glUniform4fv(self.light_intensities_location, 1, self.light.intensities)
         glUniform3fv(self.camera_position_location, 1, self.camera.position)
         self._draw('Chessboard')
-        for cell in self.board:
+        for cell in self.parent().board:
             if isinstance(cell, King):
                 if cell.color == Color.WHITE:
                     self._draw('WhiteKing', cell.position)
@@ -274,4 +231,15 @@ class Window:
                     self._draw('BlackPawn', cell.position)
         shaders.glUseProgram(0)
 
-        glutSwapBuffers()
+    def mousePressEvent(self, event):
+        self.mouse.x = event.pos().x()
+        self.mouse.y = event.pos().y()
+
+    def mouseMoveEvent(self, event):
+        if event.buttons() & QtCore.Qt.LeftButton:
+            self.camera.go_right(event.pos().x() - self.mouse.x)
+            self.camera.go_up(event.pos().y() - self.mouse.y)
+            self.updateGL()
+
+        self.mouse.x = event.pos().x()
+        self.mouse.y = event.pos().y()
