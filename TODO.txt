@@ -1,0 +1,20 @@
+# Mandatory - real time
+Cook-Torrance with very anisotropic characteristics
+Bump mapping on the chessboard
+Lighting parameters (position, intensities) + HUD
+Glowing effect on chessmen (effect blur or something like that)
+Chessman moves (animations)
+Reflective and refractive lighting
+Fix Rook, Knights, Chessboard
+
+# Optional - real time
+Select chessman on click
+Illuminate (ambient component) paths
+Load lights from collada
+Load camera from collada
+
+# Score + 2
+Raytracing with glass chessmen (no bump mapping)
+
+# Score + 2
+Bowling ball colliding on two pieces on the chessboard
