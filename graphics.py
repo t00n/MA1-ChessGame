@@ -142,6 +142,7 @@ class Window:
         self.ambient_location = glGetUniformLocation(self.program, 'u_ambient')
         self.specular_location = glGetUniformLocation(self.program, 'u_specular')
         self.shininess_location = glGetUniformLocation(self.program, 'u_shininess')
+        self.index_of_refraction_location = glGetUniformLocation(self.program, 'u_index_of_refraction')
 
         glEnable(GL_CULL_FACE)
         glCullFace(GL_FRONT)
@@ -209,6 +210,7 @@ class Window:
             glUniform4fv(self.ambient_location, 1, effect.ambient)
             glUniform4fv(self.specular_location, 1, effect.specular)
             glUniform1f(self.shininess_location, effect.shininess)
+            glUniform1f(self.index_of_refraction_location, effect.index_of_refraction)
             model = reduce(np.dot, [translate([(position[0])*6, 0, (position[1])*6]),
                                     translate(geo.translation),
                                     rotate(geo.rotation[2], [0, 0, 1]),

@@ -6,6 +6,7 @@ uniform vec4 u_diffuse;
 uniform vec4 u_ambient;
 uniform vec4 u_specular;
 uniform float u_shininess;
+uniform float u_index_of_refraction;
 
 uniform mat4 u_model;
 uniform mat4 u_view;
