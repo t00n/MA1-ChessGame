@@ -73,7 +73,7 @@ class Camera(MixinHasPosition):
 
 class Light(MixinHasPosition):
     def __init__(self):
-        super(Light, self).__init__(10,10,0)
+        super(Light, self).__init__(0,20,0)
         self._intensities = [1,1,1,1]
 
     def intensities():
