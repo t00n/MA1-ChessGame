@@ -25,9 +25,17 @@ float F_schlick(vec3 from_light, vec3 hv) {
     return R0 + (1 - R0) * pow(1 - dot(from_light, hv), 5);
 }
 
+float G_attenuation(vec3 to_light, vec3 to_camera, vec3 hv, vec3 normal) {
+    return min(1, 
+           min((2 * dot(normal, hv) * dot(normal, to_camera)) / dot(to_camera, hv),
+               (2 * dot(normal, hv) * dot(normal, to_light)) / dot(to_camera, hv)));
+}
+
 float cook_torrance(vec3 to_light, vec3 to_camera, vec3 normal, float roughness) {
     vec3 hv = half_vector(to_light, to_camera);
-    return F_schlick(-to_light, hv);
+    return F_schlick(-to_light, hv)
+         * G_attenuation(to_light, to_camera, hv, normal)
+         / (3.1416 * dot(normal, to_camera));
 }
 
 void main(void) {
