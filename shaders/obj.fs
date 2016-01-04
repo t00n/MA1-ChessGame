@@ -15,6 +15,10 @@ uniform vec3 u_light_position;
 uniform vec4 u_light_intensities;
 uniform vec3 u_camera_position;
 
+vec3 half_vector(vec3 v1, vec3, v2) {
+    return (v1 + v2) / (length(v1 + v2));
+}
+
 void main(void) {
     // Calcule normal and position in world coordinates
     mat3 normalMatrix = transpose(inverse(mat3(u_model)));
