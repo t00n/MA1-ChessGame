@@ -21,6 +21,14 @@ vec3 half_vector(vec3 v1, vec3 v2) {
     return (v1 + v2) / (length(v1 + v2));
 }
 
+float D_distribution(vec3 normal, vec3 hv, float roughness) {
+    float alpha = dot(normal, hv);
+    float tan2 = (1 - pow(alpha, 2)) / (pow(alpha, 2) * pow(roughness, 2));
+    float num = pow(2.71828, -tan2);
+    float denom = 3.1416 * pow(roughness, 2) * pow(alpha, 4);
+    return num/denom;
+}
+
 float F_schlick(vec3 from_light, vec3 hv) {
     return R0 + (1 - R0) * pow(1 - dot(from_light, hv), 5);
 }
@@ -33,7 +41,8 @@ float G_attenuation(vec3 to_light, vec3 to_camera, vec3 hv, vec3 normal) {
 
 float cook_torrance(vec3 to_light, vec3 to_camera, vec3 normal, float roughness) {
     vec3 hv = half_vector(to_light, to_camera);
-    return F_schlick(-to_light, hv)
+    return D_distribution(normal, hv, roughness)
+         * F_schlick(-to_light, hv)
          * G_attenuation(to_light, to_camera, hv, normal)
          / (3.1416 * dot(normal, to_camera));
 }
