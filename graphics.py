@@ -103,6 +103,7 @@ class Window:
         glutInitWindowPosition(0, 0)
         self.window = glutCreateWindow('Chess Game')
         self.mouse = Mouse()
+        glClearColor(0.5, 0.5, 1.0, 1.0)
         glutMouseFunc(self._onclick)
         glutMotionFunc(self._onmouse)
         glutPassiveMotionFunc(self._onmouse)
