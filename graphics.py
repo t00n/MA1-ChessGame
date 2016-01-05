@@ -131,8 +131,11 @@ class Window(QMainWindow):
         self.gl_widget.setMinimumSize(800, 600)
 
         self.x_slider = LightSlider(-50, 50, self.gl_widget.light.set_x, self.gl_widget)
+        self.x_slider.setValue(self.gl_widget.light.x)
         self.y_slider = LightSlider(0, 50, self.gl_widget.light.set_y, self.gl_widget)
+        self.y_slider.setValue(self.gl_widget.light.y)
         self.z_slider = LightSlider(-50, 50, self.gl_widget.light.set_z, self.gl_widget)
+        self.z_slider.setValue(self.gl_widget.light.z)
         self.left_layout = QVBoxLayout()
         self.left_layout.addWidget(self.x_slider)
         self.left_layout.addWidget(self.y_slider)
@@ -141,8 +144,11 @@ class Window(QMainWindow):
         self.left_widget.setLayout(self.left_layout)
 
         self.R_slider = LightSlider(0, 255, self.gl_widget.light.set_R, self.gl_widget)
+        self.R_slider.setValue(self.gl_widget.light.intensities[0]*255)
         self.G_slider = LightSlider(0, 255, self.gl_widget.light.set_G, self.gl_widget)
+        self.G_slider.setValue(self.gl_widget.light.intensities[1]*255)
         self.B_slider = LightSlider(0, 255, self.gl_widget.light.set_B, self.gl_widget)
+        self.B_slider.setValue(self.gl_widget.light.intensities[2]*255)
         self.right_layout = QVBoxLayout()
         self.right_layout.addWidget(self.R_slider)
         self.right_layout.addWidget(self.G_slider)
