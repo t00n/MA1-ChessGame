@@ -90,24 +90,86 @@ class Light(MixinHasPosition):
         return locals()
     intensities = property(**intensities())
 
+    def set_x(self, val):
+        self.x = val
+
+    def set_y(self, val):
+        self.y = val
+
+    def set_z(self, val):
+        self.z = val
+
+    def set_R(self, val):
+        self._intensities[0] = val/255
+
+    def set_G(self, val):
+        self._intensities[1] = val/255
+
+    def set_B(self, val):
+        self._intensities[2] = val/255
+
+class LightSlider(QSlider):
+    def __init__(self, min_val, max_val, callback):
+        super(LightSlider, self).__init__(QtCore.Qt.Horizontal)
+        self.setMinimum(min_val)
+        self.setMaximum(max_val)
+        self.callback = callback
+        self.valueChanged.connect(self.valueChangedSlot)
+
+    def valueChangedSlot(self, val):
+        self.callback(val)
+
 class Window(QMainWindow):
     def __init__(self, geometries, board, width=1366, height=768):
         super(Window, self).__init__()
-        self.board = board
         self.setWindowTitle("Chess Game")
         self.resize(QDesktopWidget().availableGeometry(self).size())
 
-        self.glWidget = GLWidget(geometries, self)
-        self.setCentralWidget(self.glWidget)
+        self.gl_widget = GLWidget(geometries, board, self)
+        self.gl_widget.setMinimumSize(800, 600)
+
+        self.x_slider = LightSlider(-50, 50, self.gl_widget.light.set_x)
+        self.y_slider = LightSlider(0, 50, self.gl_widget.light.set_y)
+        self.z_slider = LightSlider(-50, 50, self.gl_widget.light.set_z)
+        self.left_layout = QVBoxLayout()
+        self.left_layout.addWidget(self.x_slider)
+        self.left_layout.addWidget(self.y_slider)
+        self.left_layout.addWidget(self.z_slider)
+        self.left_widget = QWidget()
+        self.left_widget.setLayout(self.left_layout)
+
+        self.R_slider = LightSlider(0, 255, self.gl_widget.light.set_R)
+        self.G_slider = LightSlider(0, 255, self.gl_widget.light.set_G)
+        self.B_slider = LightSlider(0, 255, self.gl_widget.light.set_B)
+        self.right_layout = QVBoxLayout()
+        self.right_layout.addWidget(self.R_slider)
+        self.right_layout.addWidget(self.G_slider)
+        self.right_layout.addWidget(self.B_slider)
+        self.right_widget = QWidget()
+        self.right_widget.setLayout(self.right_layout)
+
+        self.top_layout = QHBoxLayout()
+        self.top_layout.addWidget(self.left_widget)
+        self.top_layout.addWidget(self.right_widget)
+        self.top_widget = QWidget()
+        self.top_widget.setLayout(self.top_layout)
+
+        self.main_layout = QVBoxLayout()
+        self.main_layout.addWidget(self.top_widget)
+        self.main_layout.addWidget(self.gl_widget)
+        self.main_layout.addStretch(0.2)
+        self.main_widget = QWidget()
+        self.main_widget.setLayout(self.main_layout)
+        self.setCentralWidget(self.main_widget)
 
 class GLWidget(QGLWidget):
-    def __init__(self, geometries, parent):
+    def __init__(self, geometries, board, parent):
         super(GLWidget, self).__init__(parent)
         self.camera = Camera()
         self.light = Light()
         self.mouse = Mouse()
         self.geometries = geometries
-        # self.setSizePolicy(QSizePolicy.Maximum, QSizePolicy.Maximum)
+        self.board = board
 
     def initializeGL(self):
         # init window and context
@@ -198,7 +260,7 @@ class GLWidget(QGLWidget):
         glUniform4fv(self.light_intensities_location, 1, self.light.intensities)
         glUniform3fv(self.camera_position_location, 1, self.camera.position)
         self._draw('Chessboard')
-        for cell in self.parent().board:
+        for cell in self.board:
             if isinstance(cell, King):
                 if cell.color == Color.WHITE:
                     self._draw('WhiteKing', cell.position)
