@@ -1,6 +1,7 @@
 from OpenGL.GL import *
 from OpenGL.GL import shaders
 from OpenGL.arrays import *
+from OpenGL.GLU import gluUnProject
 from OpenGL.GLUT import *
 from OpenGL.GLUT.freeglut import *
 from PyQt4.QtGui import *
@@ -227,12 +228,7 @@ class GLWidget(QGLWidget):
             glUniform4fv(self.specular_location, 1, effect.specular)
             glUniform1f(self.shininess_location, effect.shininess)
             glUniform1f(self.index_of_refraction_location, effect.index_of_refraction)
-            model = reduce(np.dot, [translate([(position[0])*6, 0, (position[1])*6]),
-                                    translate(geo.translation),
-                                    rotate(geo.rotation[2], [0, 0, 1]),
-                                    rotate(geo.rotation[1], [0, 1, 0]),
-                                    rotate(geo.rotation[0], [1, 0, 0]),
-                                    scale(geo.scaling)])
+            model = self._model_matrix(geo, position)
             glUniformMatrix4fv(self.model_matrix_location, 1, GL_FALSE, model)
             try:
                 vbo.bind()
@@ -250,10 +246,18 @@ class GLWidget(QGLWidget):
 
     def _projection_matrix(self):
         return perspective(45, self.width()/self.height(), 0.1, 100)
-        # return ortho(-10, 10, -10, 10, 0, 10)
+        # return ortho(-50, 50, -50, 50, 0, 100)
 
     def _view_matrix(self):
         return look_at((self.camera.x, self.camera.y, self.camera.z), (0,0,0), (0,1,0))
+
+    def _model_matrix(self, geo, position):
+        return reduce(np.dot, [translate([(position[0])*6, 0, (position[1])*6]),
+                                    translate(geo.translation),
+                                    rotate(geo.rotation[2], [0, 0, 1]),
+                                    rotate(geo.rotation[1], [0, 1, 0]),
+                                    rotate(geo.rotation[0], [1, 0, 0]),
+                                    scale(geo.scaling)])
 
     def paintGL(self):
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
@@ -307,6 +311,27 @@ class GLWidget(QGLWidget):
     def mousePressEvent(self, event):
         self.mouse.x = event.pos().x()
         self.mouse.y = event.pos().y()
+        glReadBuffer(GL_BACK)
+        z = glReadPixels(self.mouse.x, self.mouse.y, 1, 1, GL_DEPTH_COMPONENT, GL_FLOAT)[0][0]
+        self.detect_collision(self.mouse.x, self.mouse.y, z)
+
+    def detect_collision(self, x, y, z):
+        # normalize
+        x = (2 * x) / self.width() - 1
+        y = (2 * y) / self.height() - 1
+        z = 2 * z - 1
+        position = np.array([x, y, z, 1])
+        # print(position)
+        world_to_cam = self._projection_matrix().dot(self._view_matrix())
+        cam_to_world = np.linalg.inv(self._view_matrix()).dot(np.linalg.inv(self._projection_matrix()))
+        position = cam_to_world.dot(position)
+        # print(position)
+        # position = [position[i] / position[3] for i in range(4)]
+        # print(position)
+        # position = np.linalg.inv(self._projection_matrix()).dot(position)
+        position = np.array(list(map(lambda x: round(x, 3), position)))
+        print(position)
+        print()
 
     def mouseMoveEvent(self, event):
         if event.buttons() & QtCore.Qt.LeftButton:
