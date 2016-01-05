@@ -109,15 +109,17 @@ class Light(MixinHasPosition):
         self._intensities[2] = val/255
 
 class LightSlider(QSlider):
-    def __init__(self, min_val, max_val, callback):
+    def __init__(self, min_val, max_val, callback, gl):
         super(LightSlider, self).__init__(QtCore.Qt.Horizontal)
         self.setMinimum(min_val)
         self.setMaximum(max_val)
         self.callback = callback
         self.valueChanged.connect(self.valueChangedSlot)
+        self.gl = gl
 
     def valueChangedSlot(self, val):
         self.callback(val)
+        self.gl.updateGL()
 
 class Window(QMainWindow):
     def __init__(self, geometries, board, width=1366, height=768):
@@ -128,9 +130,9 @@ class Window(QMainWindow):
         self.gl_widget = GLWidget(geometries, board, self)
         self.gl_widget.setMinimumSize(800, 600)
 
-        self.x_slider = LightSlider(-50, 50, self.gl_widget.light.set_x)
-        self.y_slider = LightSlider(0, 50, self.gl_widget.light.set_y)
-        self.z_slider = LightSlider(-50, 50, self.gl_widget.light.set_z)
+        self.x_slider = LightSlider(-50, 50, self.gl_widget.light.set_x, self.gl_widget)
+        self.y_slider = LightSlider(0, 50, self.gl_widget.light.set_y, self.gl_widget)
+        self.z_slider = LightSlider(-50, 50, self.gl_widget.light.set_z, self.gl_widget)
         self.left_layout = QVBoxLayout()
         self.left_layout.addWidget(self.x_slider)
         self.left_layout.addWidget(self.y_slider)
@@ -138,9 +140,9 @@ class Window(QMainWindow):
         self.left_widget = QWidget()
         self.left_widget.setLayout(self.left_layout)
 
-        self.R_slider = LightSlider(0, 255, self.gl_widget.light.set_R)
-        self.G_slider = LightSlider(0, 255, self.gl_widget.light.set_G)
-        self.B_slider = LightSlider(0, 255, self.gl_widget.light.set_B)
+        self.R_slider = LightSlider(0, 255, self.gl_widget.light.set_R, self.gl_widget)
+        self.G_slider = LightSlider(0, 255, self.gl_widget.light.set_G, self.gl_widget)
+        self.B_slider = LightSlider(0, 255, self.gl_widget.light.set_B, self.gl_widget)
         self.right_layout = QVBoxLayout()
         self.right_layout.addWidget(self.R_slider)
         self.right_layout.addWidget(self.G_slider)
