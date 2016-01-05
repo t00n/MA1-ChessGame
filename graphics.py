@@ -129,6 +129,7 @@ class Window(QMainWindow):
 
         self.gl_widget = GLWidget(geometries, board, self)
         self.gl_widget.setMinimumSize(800, 600)
+        self.gl_widget.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
 
         self.x_slider = LightSlider(-50, 50, self.gl_widget.light.set_x, self.gl_widget)
         self.x_slider.setValue(self.gl_widget.light.x)
@@ -188,12 +189,6 @@ class GLWidget(QGLWidget):
         FRAGMENT_SHADER = shaders.compileShader(open('shaders/obj.fs').read(), GL_FRAGMENT_SHADER)
         self.program = shaders.compileProgram(VERTEX_SHADER, FRAGMENT_SHADER)
 
-        # projection matrix
-        shaders.glUseProgram(self.program)
-        projection_matrix_location = glGetUniformLocation(self.program, 'u_projection')
-        glUniformMatrix4fv(projection_matrix_location, 1, GL_FALSE, self._projection_matrix())
-        shaders.glUseProgram(0)
-
         # load VBOs
         self.VBOs = defaultdict(lambda: [])
         for name, geo in self.geometries.items():
@@ -203,6 +198,7 @@ class GLWidget(QGLWidget):
                 self.VBOs[name].append(vbo.VBO(np.concatenate((np.array(vertices), np.array(normals)), axis=1)))
 
         # get variables location
+        self.projection_matrix_location = glGetUniformLocation(self.program, 'u_projection')
         self.view_matrix_location = glGetUniformLocation(self.program, 'u_view')
         self.model_matrix_location = glGetUniformLocation(self.program, 'u_model')
         self.light_position_location = glGetUniformLocation(self.program, 'u_light_position')
@@ -299,6 +295,13 @@ class GLWidget(QGLWidget):
                     self._draw('WhitePawn', cell.position)
                 else:
                     self._draw('BlackPawn', cell.position)
+        shaders.glUseProgram(0)
+
+    def resizeGL(self, x, y):
+        # projection matrix
+        self.adjustSize()
+        shaders.glUseProgram(self.program)
+        glUniformMatrix4fv(self.projection_matrix_location, 1, GL_FALSE, self._projection_matrix())
         shaders.glUseProgram(0)
 
     def mousePressEvent(self, event):
