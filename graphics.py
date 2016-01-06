@@ -172,6 +172,74 @@ class Window(QMainWindow):
         self.main_widget.setLayout(self.main_layout)
         self.setCentralWidget(self.main_widget)
 
+def load_shaders(vert, frag):
+    VERTEX_SHADER = shaders.compileShader(open(vert).read(), GL_VERTEX_SHADER)
+    FRAGMENT_SHADER = shaders.compileShader(open(frag).read(), GL_FRAGMENT_SHADER)
+    return shaders.compileProgram(VERTEX_SHADER, FRAGMENT_SHADER)
+
+
+class MainProgram:
+    def __init__(self, vertex_shader = 'shaders/obj.vs', fragment_shader = 'shaders/obj.fs'):
+        self.program = load_shaders(vertex_shader, fragment_shader)
+
+        self.projection_matrix_location = glGetUniformLocation(self.program, 'u_projection')
+        self.view_matrix_location = glGetUniformLocation(self.program, 'u_view')
+        self.model_matrix_location = glGetUniformLocation(self.program, 'u_model')
+        self.light_position_location = glGetUniformLocation(self.program, 'u_light_position')
+        self.light_intensities_location = glGetUniformLocation(self.program, 'u_light_intensities')
+        self.camera_position_location = glGetUniformLocation(self.program, 'u_camera_position')
+        self.position_location = glGetAttribLocation( self.program, 'a_position' )
+        self.normal_location = glGetAttribLocation(self.program, 'a_normal')
+        self.diffuse_location = glGetUniformLocation(self.program, 'u_diffuse')
+        self.ambient_location = glGetUniformLocation(self.program, 'u_ambient')
+        self.specular_location = glGetUniformLocation(self.program, 'u_specular')
+        self.shininess_location = glGetUniformLocation(self.program, 'u_shininess')
+        self.index_of_refraction_location = glGetUniformLocation(self.program, 'u_index_of_refraction')
+
+    def __enter__(self):
+        shaders.glUseProgram(self.program)
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        shaders.glUseProgram(0)
+
+    def set_projection_matrix(self, matrix):
+        with self:
+            glUniformMatrix4fv(self.projection_matrix_location, 1, GL_FALSE, matrix)
+
+    def set_view_matrix(self, matrix):
+        with self:
+            glUniformMatrix4fv(self.view_matrix_location, 1, GL_FALSE, matrix)
+
+    def set_light(self, light):
+        with self:
+            glUniform3fv(self.light_position_location, 1, light.position)
+            glUniform4fv(self.light_intensities_location, 1, light.intensities)
+
+    def set_camera(self, camera):
+        with self:
+            glUniform3fv(self.camera_position_location, 1, camera.position)
+
+    def draw(self, vbo, model, effect):
+        glUniform4fv(self.diffuse_location, 1, effect.diffuse)
+        glUniform4fv(self.ambient_location, 1, effect.ambient)
+        glUniform4fv(self.specular_location, 1, effect.specular)
+        glUniform1f(self.shininess_location, effect.shininess)
+        glUniform1f(self.index_of_refraction_location, effect.index_of_refraction)
+        glUniformMatrix4fv(self.model_matrix_location, 1, GL_FALSE, model)
+        try:
+            vbo.bind()
+            try:
+                glEnableVertexAttribArray(self.position_location)
+                glEnableVertexAttribArray(self.normal_location)
+                glVertexAttribPointer(self.position_location, 3, GL_FLOAT, False, 24, vbo)
+                glVertexAttribPointer(self.normal_location, 3, GL_FLOAT, False, 24, vbo+12)
+                glDrawArrays(GL_TRIANGLES, 0, len(vbo))
+            finally:
+                glDisableVertexAttribArray(self.normal_location)
+                glDisableVertexAttribArray(self.position_location)
+        finally:
+            vbo.unbind()
+
 class GLWidget(QGLWidget):
     def __init__(self, geometries, board, parent):
         format = QGLFormat()
@@ -189,9 +257,6 @@ class GLWidget(QGLWidget):
         glClearColor(0.5, 0.5, 1.0, 1.0)
 
         # load shaders
-        VERTEX_SHADER = shaders.compileShader(open('shaders/obj.vs').read(), GL_VERTEX_SHADER)
-        FRAGMENT_SHADER = shaders.compileShader(open('shaders/obj.fs').read(), GL_FRAGMENT_SHADER)
-        self.program = shaders.compileProgram(VERTEX_SHADER, FRAGMENT_SHADER)
 
         VERTEX_SHADER = shaders.compileShader(open('shaders/texture.vs').read(), GL_VERTEX_SHADER)
         FRAGMENT_SHADER = shaders.compileShader(open('shaders/texture.fs').read(), GL_FRAGMENT_SHADER)
@@ -207,53 +272,12 @@ class GLWidget(QGLWidget):
 
         self.all_cube = vbo.VBO(np.array([[1, 1], [1, -1], [-1, -1], [-1, 1]], dtype=np.float32))
 
-        # get variables location
-        self.projection_matrix_location = glGetUniformLocation(self.program, 'u_projection')
-        self.view_matrix_location = glGetUniformLocation(self.program, 'u_view')
-        self.model_matrix_location = glGetUniformLocation(self.program, 'u_model')
-        self.light_position_location = glGetUniformLocation(self.program, 'u_light_position')
-        self.light_intensities_location = glGetUniformLocation(self.program, 'u_light_intensities')
-        self.camera_position_location = glGetUniformLocation(self.program, 'u_camera_position')
-        self.position_location = glGetAttribLocation( self.program, 'a_position' )
-        self.normal_location = glGetAttribLocation(self.program, 'a_normal')
-        self.diffuse_location = glGetUniformLocation(self.program, 'u_diffuse')
-        self.ambient_location = glGetUniformLocation(self.program, 'u_ambient')
-        self.specular_location = glGetUniformLocation(self.program, 'u_specular')
-        self.shininess_location = glGetUniformLocation(self.program, 'u_shininess')
-        self.index_of_refraction_location = glGetUniformLocation(self.program, 'u_index_of_refraction')
-
         glEnable(GL_CULL_FACE)
         glCullFace(GL_FRONT)
         glEnable(GL_DEPTH_TEST)
 
-        self.fbo, self.texture, self.depth = self.create_fbo()
-
-    def _draw(self, name, position=(0,0)):
-        vbos = self.VBOs[name]
-        geo = self.geometries[name]
-        for i in range(len(vbos)):
-            vbo = vbos[i]
-            effect = geo.materials[i].effect
-            glUniform4fv(self.diffuse_location, 1, effect.diffuse)
-            glUniform4fv(self.ambient_location, 1, effect.ambient)
-            glUniform4fv(self.specular_location, 1, effect.specular)
-            glUniform1f(self.shininess_location, effect.shininess)
-            glUniform1f(self.index_of_refraction_location, effect.index_of_refraction)
-            model = self._model_matrix(geo, position)
-            glUniformMatrix4fv(self.model_matrix_location, 1, GL_FALSE, model)
-            try:
-                vbo.bind()
-                try:
-                    glEnableVertexAttribArray(self.position_location)
-                    glEnableVertexAttribArray(self.normal_location)
-                    glVertexAttribPointer(self.position_location, 3, GL_FLOAT, False, 24, vbo)
-                    glVertexAttribPointer(self.normal_location, 3, GL_FLOAT, False, 24, vbo+12)
-                    glDrawArrays(GL_TRIANGLES, 0, len(vbo))
-                finally:
-                    glDisableVertexAttribArray(self.normal_location)
-                    glDisableVertexAttribArray(self.position_location)
-            finally:
-                vbo.unbind()
+        # self.fbo, self.texture, self.depth = self.create_fbo()
+        self.main_program = MainProgram()
 
     def _projection_matrix(self):
         return perspective(45, self.width()/self.height(), 0.1, 100)
@@ -323,58 +347,66 @@ class GLWidget(QGLWidget):
             self.all_cube.unbind()
         shaders.glUseProgram(0)
 
+    def draw_scene_object(self, name, position=[0,0]):
+        vbos = self.VBOs[name]
+        geo = self.geometries[name]
+        for i in range(len(vbos)):
+            vbo = vbos[i]
+            effect = geo.materials[i].effect
+            model = self._model_matrix(geo, position)
+            self.main_program.draw(vbo, model, effect)
+
+
     def paintGL(self):
-        self.bind_fbo(self.fbo, self.texture, self.depth)
+        # self.bind_fbo(self.fbo, self.texture, self.depth)
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
 
-        shaders.glUseProgram(self.program)
-        glUniformMatrix4fv(self.view_matrix_location, 1, GL_FALSE, self._view_matrix())
-        glUniform3fv(self.light_position_location, 1, self.light.position)
-        glUniform4fv(self.light_intensities_location, 1, self.light.intensities)
-        glUniform3fv(self.camera_position_location, 1, self.camera.position)
-        self._draw('Chessboard')
-        for cell in self.board:
-            if isinstance(cell, King):
-                if cell.color == Color.WHITE:
-                    self._draw('WhiteKing', cell.position)
-                else:
-                    self._draw('BlackKing', cell.position)
-            elif isinstance(cell, Queen):
-                if cell.color == Color.WHITE:
-                    self._draw('WhiteQueen', cell.position)
-                else:
-                    self._draw('BlackQueen', cell.position)
-            elif isinstance(cell, Bishop):
-                if cell.color == Color.WHITE:
-                    self._draw('WhiteBishop', cell.position)
-                else:
-                    self._draw('BlackBishop', cell.position)
-            elif isinstance(cell, Knight):
-                if cell.color == Color.WHITE:
-                    self._draw('WhiteKnight', cell.position)
-                else:
-                    self._draw('BlackKnight', cell.position)
-            elif isinstance(cell, Rook):
-                if cell.color == Color.WHITE:
-                    self._draw('WhiteRook', cell.position)
-                else:
-                    self._draw('BlackRook', cell.position)
-            elif isinstance(cell, Pawn):
-                if cell.color == Color.WHITE:
-                    self._draw('WhitePawn', cell.position)
-                else:
-                    self._draw('BlackPawn', cell.position)
-        shaders.glUseProgram(0)
-        self.unbind_fbo()
+        self.main_program.set_view_matrix(self._view_matrix())
+        self.main_program.set_light(self.light)
+        self.main_program.set_camera(self.camera)
 
-        self._draw_texture()
+        with self.main_program:
+            self.draw_scene_object('Chessboard')
+            for cell in self.board:
+                if isinstance(cell, King):
+                    if cell.color == Color.WHITE:
+                        name = 'WhiteKing'
+                    else:
+                        name = 'BlackKing'
+                elif isinstance(cell, Queen):
+                    if cell.color == Color.WHITE:
+                        name = 'WhiteQueen'
+                    else:
+                        name = 'BlackQueen'
+                elif isinstance(cell, Bishop):
+                    if cell.color == Color.WHITE:
+                        name = 'WhiteBishop'
+                    else:
+                        name = 'BlackBishop'
+                elif isinstance(cell, Knight):
+                    if cell.color == Color.WHITE:
+                        name = 'WhiteKnight'
+                    else:
+                        name = 'BlackKnight'
+                elif isinstance(cell, Rook):
+                    if cell.color == Color.WHITE:
+                        name = 'WhiteRook'
+                    else:
+                        name = 'BlackRook'
+                elif isinstance(cell, Pawn):
+                    if cell.color == Color.WHITE:
+                        name = 'WhitePawn'
+                    else:
+                        name = 'BlackPawn'
+                self.draw_scene_object(name, cell.position)
+        # self.unbind_fbo()
+
+        # self._draw_texture()
 
     def resizeGL(self, x, y):
         # projection matrix
         self.adjustSize()
-        shaders.glUseProgram(self.program)
-        glUniformMatrix4fv(self.projection_matrix_location, 1, GL_FALSE, self._projection_matrix())
-        shaders.glUseProgram(0)
+        self.main_program.set_projection_matrix(self._projection_matrix())
 
     def mousePressEvent(self, event):
         self.mouse.x = event.pos().x()
