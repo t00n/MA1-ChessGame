@@ -90,3 +90,20 @@ class Light(MixinHasPosition):
 
     def set_B(self, val):
         self._intensities[2] = val/255
+
+class Animation:
+    def __init__(self, chessman, destination, knight=False):
+        self.chessman = chessman
+        self.destination = np.array(destination)
+        self.move = np.array(self.destination) - np.array(self.chessman.position)
+        self.step = normalize(self.move)
+        self.knight = knight
+
+    def update(self, ms=0.05):
+        if not self.knight:
+            self.chessman.position += self.step * ms
+        if self.destination[0] - self.chessman.position[0] < 0.01 \
+        and self.destination[1] - self.chessman.position[1] < 0.01: 
+            self.chessman.move(self.destination)
+            return True
+        return False

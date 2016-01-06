@@ -9,7 +9,7 @@ from vispy.util.transforms import *
 from collections import defaultdict
 from functools import reduce
 from util import look_at
-from gl_component import Mouse, Light, Camera
+from gl_component import Mouse, Light, Camera, Animation
 
 from chess import King, Queen, Bishop, Knight, Rook, Pawn, Color
 
@@ -153,6 +153,10 @@ class GLWidget(QGLWidget):
         self.main_program = MainProgram()
         self.texture_program = TextureProgram()
 
+        self.animations = []
+
+        QTimer.singleShot(0, self.update)
+
     def paintGL(self):
         # self.bind_fbo(self.fbo)
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
@@ -183,6 +187,16 @@ class GLWidget(QGLWidget):
 
         self.mouse.x = event.pos().x()
         self.mouse.y = event.pos().y()
+
+    def update(self):
+        try:
+            for i in range(len(self.animations)):
+                anim = self.animations[i]
+                if anim.update():
+                    del self.animations[i]
+            self.updateGL()
+        finally:
+            QTimer.singleShot(0, self.update)
 
     def _detect_collision(self, x, y, z):
         # normalize
