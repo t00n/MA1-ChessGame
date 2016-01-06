@@ -193,6 +193,10 @@ class GLWidget(QGLWidget):
         FRAGMENT_SHADER = shaders.compileShader(open('shaders/obj.fs').read(), GL_FRAGMENT_SHADER)
         self.program = shaders.compileProgram(VERTEX_SHADER, FRAGMENT_SHADER)
 
+        VERTEX_SHADER = shaders.compileShader(open('shaders/texture.vs').read(), GL_VERTEX_SHADER)
+        FRAGMENT_SHADER = shaders.compileShader(open('shaders/texture.fs').read(), GL_FRAGMENT_SHADER)
+        self.program_texture = shaders.compileProgram(VERTEX_SHADER, FRAGMENT_SHADER)
+
         # load VBOs
         self.VBOs = defaultdict(lambda: [])
         for name, geo in self.geometries.items():
@@ -200,6 +204,8 @@ class GLWidget(QGLWidget):
                 vertices = geo.vertices[i]
                 normals = geo.normals[i]
                 self.VBOs[name].append(vbo.VBO(np.concatenate((np.array(vertices), np.array(normals)), axis=1)))
+
+        self.all_cube = vbo.VBO(np.array([[1, 1], [1, -1], [-1, -1], [-1, 1]], dtype=np.float32))
 
         # get variables location
         self.projection_matrix_location = glGetUniformLocation(self.program, 'u_projection')
@@ -262,7 +268,40 @@ class GLWidget(QGLWidget):
                                     rotate(geo.rotation[0], [1, 0, 0]),
                                     scale(geo.scaling)])
 
+    def create_fbo(self):
+        fbo = glGenFramebuffers(1)
+        glBindFramebuffer(GL_FRAMEBUFFER, fbo)
+
+        texture = glGenTextures(1)
+        glActiveTexture(GL_TEXTURE0)
+        glBindTexture(GL_TEXTURE_2D, texture)
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, self.width(), self.height(), 0, GL_RGBA, GL_UNSIGNED_BYTE, None)
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR)
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR)
+
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texture, 0)
+
+        depth = glGenRenderbuffers(1)
+        glBindRenderbuffer(GL_RENDERBUFFER, depth)
+        glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, self.width(), self.height())
+
+        glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, depth)
+
+        glDrawBuffers(1, GL_COLOR_ATTACHMENT0)
+
+        self.unbind_fbo()
+
+        return fbo, texture, depth
+
+    def bind_fbo(self, fbo):
+        glBindFramebuffer(GL_FRAMEBUFFER, fbo)
+
+    def unbind_fbo(self):
+        glBindFramebuffer(GL_FRAMEBUFFER, 0)
+
     def paintGL(self):
+        fbo, texture, depth = self.create_fbo()
+        self.bind_fbo(fbo)
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
 
         shaders.glUseProgram(self.program)
@@ -302,6 +341,25 @@ class GLWidget(QGLWidget):
                     self._draw('WhitePawn', cell.position)
                 else:
                     self._draw('BlackPawn', cell.position)
+        shaders.glUseProgram(0)
+        self.unbind_fbo()
+
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+
+        shaders.glUseProgram(self.program_texture)
+        texture_location = glGetUniformLocation(self.program_texture, 'u_texture')
+        position_location = glGetAttribLocation(self.program_texture, 'a_position')
+        glUniform1i(texture_location, texture)
+        try:
+            self.all_cube.bind()
+            try:
+                glEnableVertexAttribArray(position_location)
+                glVertexAttribPointer(position_location, 2, GL_FLOAT, False, 8, self.all_cube)
+                glDrawArrays(GL_QUADS, 0, len(self.all_cube))
+            finally:
+                glDisableVertexAttribArray(position_location)
+        finally:
+            self.all_cube.unbind()
         shaders.glUseProgram(0)
 
     def resizeGL(self, x, y):
