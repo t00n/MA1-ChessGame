@@ -226,6 +226,8 @@ class GLWidget(QGLWidget):
         glCullFace(GL_FRONT)
         glEnable(GL_DEPTH_TEST)
 
+        self.fbo, self.texture, self.depth = self.create_fbo()
+
     def _draw(self, name, position=(0,0)):
         vbos = self.VBOs[name]
         geo = self.geometries[name]
@@ -287,21 +289,42 @@ class GLWidget(QGLWidget):
 
         glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, depth)
 
-        glDrawBuffers(1, GL_COLOR_ATTACHMENT0)
+        glDrawBuffers(1, [GL_COLOR_ATTACHMENT0])
 
         self.unbind_fbo()
 
         return fbo, texture, depth
 
-    def bind_fbo(self, fbo):
+    def bind_fbo(self, fbo, texture, depth):
         glBindFramebuffer(GL_FRAMEBUFFER, fbo)
 
     def unbind_fbo(self):
         glBindFramebuffer(GL_FRAMEBUFFER, 0)
 
+    def _draw_texture(self):
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+
+        shaders.glUseProgram(self.program_texture)
+        texture_location = glGetUniformLocation(self.program_texture, 'u_texture')
+        position_location = glGetAttribLocation(self.program_texture, 'a_position')
+        # glUniform1i(texture_location, self.texture)
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, self.texture);
+        glUniform1i(texture_location, 0);
+        try:
+            self.all_cube.bind()
+            try:
+                glEnableVertexAttribArray(position_location)
+                glVertexAttribPointer(position_location, 2, GL_FLOAT, False, 8, self.all_cube)
+                glDrawArrays(GL_QUADS, 0, len(self.all_cube))
+            finally:
+                glDisableVertexAttribArray(position_location)
+        finally:
+            self.all_cube.unbind()
+        shaders.glUseProgram(0)
+
     def paintGL(self):
-        fbo, texture, depth = self.create_fbo()
-        self.bind_fbo(fbo)
+        self.bind_fbo(self.fbo, self.texture, self.depth)
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
 
         shaders.glUseProgram(self.program)
@@ -344,23 +367,7 @@ class GLWidget(QGLWidget):
         shaders.glUseProgram(0)
         self.unbind_fbo()
 
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
-
-        shaders.glUseProgram(self.program_texture)
-        texture_location = glGetUniformLocation(self.program_texture, 'u_texture')
-        position_location = glGetAttribLocation(self.program_texture, 'a_position')
-        glUniform1i(texture_location, texture)
-        try:
-            self.all_cube.bind()
-            try:
-                glEnableVertexAttribArray(position_location)
-                glVertexAttribPointer(position_location, 2, GL_FLOAT, False, 8, self.all_cube)
-                glDrawArrays(GL_QUADS, 0, len(self.all_cube))
-            finally:
-                glDisableVertexAttribArray(position_location)
-        finally:
-            self.all_cube.unbind()
-        shaders.glUseProgram(0)
+        self._draw_texture()
 
     def resizeGL(self, x, y):
         # projection matrix
