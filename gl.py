@@ -1,176 +1,17 @@
 from OpenGL.GL import *
 from OpenGL.GL import shaders
 from OpenGL.arrays import *
-from OpenGL.GLU import gluUnProject
-from OpenGL.GLUT import *
-from OpenGL.GLUT.freeglut import *
 from PyQt4.QtGui import *
 from PyQt4.QtOpenGL import *
-from PyQt4 import QtCore
+from PyQt4.QtCore import *
 import numpy as np
 from vispy.util.transforms import *
-from util import look_at, normalize
-import math
 from collections import defaultdict
 from functools import reduce
+from util import look_at
+from gl_component import Mouse, Light, Camera
 
 from chess import King, Queen, Bishop, Knight, Rook, Pawn, Color
-
-class MixinHasPosition:
-    def __init__(self, x, y, z):
-        self.x = x
-        self.y = y 
-        self.z = z
-
-    @property
-    def position(self):
-        return [self.x, self.y, self.z]
-
-class MixinHasDirection:
-    def __init__(self, x, y, z):
-        self.dir_x = x
-        self.dir_y = y
-        self.dir_z = z
-
-    @property
-    def direction(self):
-        return [self.dir_x, self.dir_y, self.dir_z]
-
-class Mouse:
-    def __init__(self):
-        self.left_button = False
-        self.middle_button = False
-        self.right_button = False
-        self.x = 0
-        self.y = 0
-
-class Camera(MixinHasPosition):
-    def __init__(self):
-        super(Camera, self).__init__(0,40,-40)
-
-    # camera always looks to origin (0,0,0)
-    @property
-    def direction(self):
-        return (-self.x, -self.y, -self.z)
-
-    def go_right(self, dist=0.1):
-        perpendicular = normalize([-self.z, self.x])
-        previous_norm = np.linalg.norm([self.x, self.z])
-        self.x += perpendicular[0] * dist
-        self.z += perpendicular[1] * dist
-        new_norm = np.linalg.norm([self.x, self.z])
-        self.x *= previous_norm / new_norm
-        self.z *= previous_norm / new_norm
-
-    def go_up(self, dist=0.1):
-        direction = normalize(self.direction)
-        previous_norm = np.linalg.norm([self.x, self.y, self.z])
-        self.x += direction[0] * dist
-        self.y += dist
-        self.z += direction[2] * dist
-        if self.y < 1:
-            self.y = 1
-        new_norm = np.linalg.norm([self.x, self.y, self.z])
-        self.x *= previous_norm / new_norm
-        self.y *= previous_norm / new_norm
-        self.z *= previous_norm / new_norm
-
-class Light(MixinHasPosition):
-    def __init__(self):
-        super(Light, self).__init__(0,20,0)
-        self._intensities = [1,1,1,1]
-
-    def intensities():
-        doc = "The intensities of the lights."
-        def fget(self):
-            return self._intensities
-        def fset(self, value):
-            self._intensities = value
-        def fdel(self):
-            del self._intensities
-        return locals()
-    intensities = property(**intensities())
-
-    def set_x(self, val):
-        self.x = val
-
-    def set_y(self, val):
-        self.y = val
-
-    def set_z(self, val):
-        self.z = val
-
-    def set_R(self, val):
-        self._intensities[0] = val/255
-
-    def set_G(self, val):
-        self._intensities[1] = val/255
-
-    def set_B(self, val):
-        self._intensities[2] = val/255
-
-class LightSlider(QSlider):
-    def __init__(self, min_val, max_val, callback, gl):
-        super(LightSlider, self).__init__(QtCore.Qt.Horizontal)
-        self.setMinimum(min_val)
-        self.setMaximum(max_val)
-        self.callback = callback
-        self.valueChanged.connect(self.valueChangedSlot)
-        self.gl = gl
-
-    def valueChangedSlot(self, val):
-        self.callback(val)
-        self.gl.updateGL()
-
-class Window(QMainWindow):
-    def __init__(self, geometries, board, width=1366, height=768):
-        super(Window, self).__init__()
-        self.setWindowTitle("Chess Game")
-        self.resize(QDesktopWidget().availableGeometry(self).size())
-
-        self.gl_widget = GLWidget(geometries, board, self)
-        self.gl_widget.setMinimumSize(800, 600)
-        self.gl_widget.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
-
-        self.x_slider = LightSlider(-50, 50, self.gl_widget.light.set_x, self.gl_widget)
-        self.x_slider.setValue(self.gl_widget.light.x)
-        self.y_slider = LightSlider(0, 50, self.gl_widget.light.set_y, self.gl_widget)
-        self.y_slider.setValue(self.gl_widget.light.y)
-        self.z_slider = LightSlider(-50, 50, self.gl_widget.light.set_z, self.gl_widget)
-        self.z_slider.setValue(self.gl_widget.light.z)
-        self.left_layout = QVBoxLayout()
-        self.left_layout.addWidget(self.x_slider)
-        self.left_layout.addWidget(self.y_slider)
-        self.left_layout.addWidget(self.z_slider)
-        self.left_widget = QWidget()
-        self.left_widget.setLayout(self.left_layout)
-
-        self.R_slider = LightSlider(0, 255, self.gl_widget.light.set_R, self.gl_widget)
-        self.R_slider.setValue(self.gl_widget.light.intensities[0]*255)
-        self.G_slider = LightSlider(0, 255, self.gl_widget.light.set_G, self.gl_widget)
-        self.G_slider.setValue(self.gl_widget.light.intensities[1]*255)
-        self.B_slider = LightSlider(0, 255, self.gl_widget.light.set_B, self.gl_widget)
-        self.B_slider.setValue(self.gl_widget.light.intensities[2]*255)
-        self.right_layout = QVBoxLayout()
-        self.right_layout.addWidget(self.R_slider)
-        self.right_layout.addWidget(self.G_slider)
-        self.right_layout.addWidget(self.B_slider)
-        self.right_widget = QWidget()
-        self.right_widget.setLayout(self.right_layout)
-
-        self.top_layout = QHBoxLayout()
-        self.top_layout.addWidget(self.left_widget)
-        self.top_layout.addWidget(self.right_widget)
-        self.top_widget = QWidget()
-        self.top_widget.setLayout(self.top_layout)
-
-        self.main_layout = QVBoxLayout()
-        self.main_layout.addWidget(self.top_widget)
-        self.main_layout.addWidget(self.gl_widget)
-        self.main_layout.addStretch(0.2)
-        self.main_widget = QWidget()
-        self.main_widget.setLayout(self.main_layout)
-        self.setCentralWidget(self.main_widget)
 
 def load_shaders(vert, frag):
     VERTEX_SHADER = shaders.compileShader(open(vert).read(), GL_VERTEX_SHADER)
@@ -279,12 +120,59 @@ class GLWidget(QGLWidget):
         # self.fbo, self.texture, self.depth = self.create_fbo()
         self.main_program = MainProgram()
 
+    def paintGL(self):
+        # self.bind_fbo(self.fbo, self.texture, self.depth)
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+        self._draw_scene(self.main_program)
+        # self.unbind_fbo()
+
+        # self._draw_texture()
+
+    def resizeGL(self, x, y):
+        # projection matrix
+        self.adjustSize()
+        self.main_program.set_projection_matrix(self._projection_matrix())
+
+    def mousePressEvent(self, event):
+        self.mouse.x = event.pos().x()
+        self.mouse.y = event.pos().y()
+        glReadBuffer(GL_BACK)
+        z = glReadPixels(self.mouse.x, self.mouse.y, 1, 1, GL_DEPTH_COMPONENT, GL_FLOAT)[0][0]
+        self._detect_collision(self.mouse.x, self.mouse.y, z)
+
+    def mouseMoveEvent(self, event):
+        if event.buttons() & Qt.LeftButton:
+            self.camera.go_right(event.pos().x() - self.mouse.x)
+            self.camera.go_up(event.pos().y() - self.mouse.y)
+            self.updateGL()
+
+        self.mouse.x = event.pos().x()
+        self.mouse.y = event.pos().y()
+
+    def _detect_collision(self, x, y, z):
+        # normalize
+        x = (2 * x) / self.width() - 1
+        y = 1 - (2 * y) / self.height()
+        z = 2 * z - 1
+        position = np.array([x, y, z, 1])
+        # print(position)
+        world_to_cam = self._projection_matrix().dot(self._view_matrix())
+        cam_to_world = np.linalg.inv(self._view_matrix()).dot(np.linalg.inv(self._projection_matrix()))
+        position = cam_to_world.dot(position)
+        # print(position)
+        # position = [position[i] / position[3] for i in range(4)]
+        # print(position)
+        # position = np.linalg.inv(self._projection_matrix()).dot(position)
+        position = np.array(list(map(lambda x: round(x, 3), position)))
+        print(position)
+        print()
+
     def _projection_matrix(self):
         return perspective(45, self.width()/self.height(), 0.1, 100)
         # return ortho(-50, 50, -50, 50, 0, 100)
 
     def _view_matrix(self):
-        return look_at((self.camera.x, self.camera.y, self.camera.z), (0,0,0), (0,1,0))
+        return look_at(self.camera.position, self.camera.direction, (0,1,0))
 
     def _model_matrix(self, geo, position):
         return reduce(np.dot, [translate([(position[0])*6, 0, (position[1])*6]),
@@ -347,26 +235,22 @@ class GLWidget(QGLWidget):
             self.all_cube.unbind()
         shaders.glUseProgram(0)
 
-    def draw_scene_object(self, name, position=[0,0]):
+    def _draw_scene_object(self, program, name, position=[0,0]):
         vbos = self.VBOs[name]
         geo = self.geometries[name]
         for i in range(len(vbos)):
             vbo = vbos[i]
             effect = geo.materials[i].effect
             model = self._model_matrix(geo, position)
-            self.main_program.draw(vbo, model, effect)
+            program.draw(vbo, model, effect)
 
+    def _draw_scene(self, program):
+        program.set_view_matrix(self._view_matrix())
+        program.set_light(self.light)
+        program.set_camera(self.camera)
 
-    def paintGL(self):
-        # self.bind_fbo(self.fbo, self.texture, self.depth)
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
-
-        self.main_program.set_view_matrix(self._view_matrix())
-        self.main_program.set_light(self.light)
-        self.main_program.set_camera(self.camera)
-
-        with self.main_program:
-            self.draw_scene_object('Chessboard')
+        with program:
+            self._draw_scene_object(program, 'Chessboard')
             for cell in self.board:
                 if isinstance(cell, King):
                     if cell.color == Color.WHITE:
@@ -398,46 +282,4 @@ class GLWidget(QGLWidget):
                         name = 'WhitePawn'
                     else:
                         name = 'BlackPawn'
-                self.draw_scene_object(name, cell.position)
-        # self.unbind_fbo()
-
-        # self._draw_texture()
-
-    def resizeGL(self, x, y):
-        # projection matrix
-        self.adjustSize()
-        self.main_program.set_projection_matrix(self._projection_matrix())
-
-    def mousePressEvent(self, event):
-        self.mouse.x = event.pos().x()
-        self.mouse.y = event.pos().y()
-        glReadBuffer(GL_BACK)
-        z = glReadPixels(self.mouse.x, self.mouse.y, 1, 1, GL_DEPTH_COMPONENT, GL_FLOAT)[0][0]
-        self.detect_collision(self.mouse.x, self.mouse.y, z)
-
-    def detect_collision(self, x, y, z):
-        # normalize
-        x = (2 * x) / self.width() - 1
-        y = 1 - (2 * y) / self.height()
-        z = 2 * z - 1
-        position = np.array([x, y, z, 1])
-        # print(position)
-        world_to_cam = self._projection_matrix().dot(self._view_matrix())
-        cam_to_world = np.linalg.inv(self._view_matrix()).dot(np.linalg.inv(self._projection_matrix()))
-        position = cam_to_world.dot(position)
-        # print(position)
-        # position = [position[i] / position[3] for i in range(4)]
-        # print(position)
-        # position = np.linalg.inv(self._projection_matrix()).dot(position)
-        position = np.array(list(map(lambda x: round(x, 3), position)))
-        print(position)
-        print()
-
-    def mouseMoveEvent(self, event):
-        if event.buttons() & QtCore.Qt.LeftButton:
-            self.camera.go_right(event.pos().x() - self.mouse.x)
-            self.camera.go_up(event.pos().y() - self.mouse.y)
-            self.updateGL()
-
-        self.mouse.x = event.pos().x()
-        self.mouse.y = event.pos().y()
+                self._draw_scene_object(program, name, cell.position)

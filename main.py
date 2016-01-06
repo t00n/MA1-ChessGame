@@ -1,6 +1,6 @@
 from chess import Chessboard
-from graphics import Window
-from dataloader import geometries
+from gui import Window
+from gl_data import geometries
 from PyQt4.QtGui import QApplication
 import sys
 
