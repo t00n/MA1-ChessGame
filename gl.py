@@ -14,13 +14,20 @@ from gl_component import Mouse, Light, Camera
 from chess import King, Queen, Bishop, Knight, Rook, Pawn, Color
 
 def load_shaders(vert, frag):
-    VERTEX_SHADER = shaders.compileShader(open(vert).read(), GL_VERTEX_SHADER)
-    FRAGMENT_SHADER = shaders.compileShader(open(frag).read(), GL_FRAGMENT_SHADER)
+    VERTEX_SHADER = shaders.compileShader(open('shaders/' + vert).read(), GL_VERTEX_SHADER)
+    FRAGMENT_SHADER = shaders.compileShader(open('shaders/' + frag).read(), GL_FRAGMENT_SHADER)
     return shaders.compileProgram(VERTEX_SHADER, FRAGMENT_SHADER)
 
 
-class MainProgram:
-    def __init__(self, vertex_shader = 'shaders/obj.vs', fragment_shader = 'shaders/obj.fs'):
+class Program:
+    def __enter__(self):
+        shaders.glUseProgram(self.program)
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        shaders.glUseProgram(0)
+
+class MainProgram(Program):
+    def __init__(self, vertex_shader = 'obj.vs', fragment_shader = 'obj.fs'):
         self.program = load_shaders(vertex_shader, fragment_shader)
 
         self.projection_matrix_location = glGetUniformLocation(self.program, 'u_projection')
@@ -36,12 +43,6 @@ class MainProgram:
         self.specular_location = glGetUniformLocation(self.program, 'u_specular')
         self.shininess_location = glGetUniformLocation(self.program, 'u_shininess')
         self.index_of_refraction_location = glGetUniformLocation(self.program, 'u_index_of_refraction')
-
-    def __enter__(self):
-        shaders.glUseProgram(self.program)
-
-    def __exit__(self, exc_type, exc_value, traceback):
-        shaders.glUseProgram(0)
 
     def set_projection_matrix(self, matrix):
         with self:
@@ -81,6 +82,39 @@ class MainProgram:
         finally:
             vbo.unbind()
 
+class TextureProgram(Program):
+    def __init__(self):
+        self.program = load_shaders('texture.vs', 'texture.fs')
+        self.square = vbo.VBO(np.array([[1, 1], [1, -1], [-1, -1], [-1, 1]], dtype=np.float32))
+
+        self.texture_location = glGetUniformLocation(self.program, 'u_texture')
+        self.position_location = glGetAttribLocation(self.program, 'a_position')
+        self.width_location = glGetUniformLocation(self.program, 'u_width')
+        self.height_location = glGetUniformLocation(self.program, 'u_height')
+
+    def draw(self, texture):
+        shaders.glUseProgram(self.program)
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, texture);
+        glUniform1i(self.texture_location, 0);
+        try:
+            self.square.bind()
+            try:
+                glEnableVertexAttribArray(self.position_location)
+                glVertexAttribPointer(self.position_location, 2, GL_FLOAT, False, 8, self.square)
+                glDrawArrays(GL_QUADS, 0, len(self.square))
+            finally:
+                glDisableVertexAttribArray(self.position_location)
+        finally:
+            self.square.unbind()
+        shaders.glUseProgram(0)
+
+    def resize(self, width, height):
+        with self:
+            glUniform1f(self.width_location, width)
+            glUniform1f(self.height_location, height)
+
+
 class GLWidget(QGLWidget):
     def __init__(self, geometries, board, parent):
         format = QGLFormat()
@@ -111,27 +145,28 @@ class GLWidget(QGLWidget):
                 normals = geo.normals[i]
                 self.VBOs[name].append(vbo.VBO(np.concatenate((np.array(vertices), np.array(normals)), axis=1)))
 
-        self.all_cube = vbo.VBO(np.array([[1, 1], [1, -1], [-1, -1], [-1, 1]], dtype=np.float32))
-
         glEnable(GL_CULL_FACE)
         glCullFace(GL_FRONT)
         glEnable(GL_DEPTH_TEST)
 
-        # self.fbo, self.texture, self.depth = self.create_fbo()
+        self.fbo, self.texture, self.depth = self.create_fbo()
         self.main_program = MainProgram()
+        self.texture_program = TextureProgram()
 
     def paintGL(self):
-        # self.bind_fbo(self.fbo, self.texture, self.depth)
+        self.bind_fbo(self.fbo)
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
         self._draw_scene(self.main_program)
-        # self.unbind_fbo()
+        self.unbind_fbo()
 
-        # self._draw_texture()
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+        self.texture_program.draw(self.texture)
 
-    def resizeGL(self, x, y):
+    def resizeGL(self, width, height):
         # projection matrix
         self.adjustSize()
         self.main_program.set_projection_matrix(self._projection_matrix())
+        self.texture_program.resize(width, height)
 
     def mousePressEvent(self, event):
         self.mouse.x = event.pos().x()
@@ -207,33 +242,11 @@ class GLWidget(QGLWidget):
 
         return fbo, texture, depth
 
-    def bind_fbo(self, fbo, texture, depth):
+    def bind_fbo(self, fbo):
         glBindFramebuffer(GL_FRAMEBUFFER, fbo)
 
     def unbind_fbo(self):
         glBindFramebuffer(GL_FRAMEBUFFER, 0)
-
-    def _draw_texture(self):
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
-
-        shaders.glUseProgram(self.program_texture)
-        texture_location = glGetUniformLocation(self.program_texture, 'u_texture')
-        position_location = glGetAttribLocation(self.program_texture, 'a_position')
-        # glUniform1i(texture_location, self.texture)
-        glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_2D, self.texture);
-        glUniform1i(texture_location, 0);
-        try:
-            self.all_cube.bind()
-            try:
-                glEnableVertexAttribArray(position_location)
-                glVertexAttribPointer(position_location, 2, GL_FLOAT, False, 8, self.all_cube)
-                glDrawArrays(GL_QUADS, 0, len(self.all_cube))
-            finally:
-                glDisableVertexAttribArray(position_location)
-        finally:
-            self.all_cube.unbind()
-        shaders.glUseProgram(0)
 
     def _draw_scene_object(self, program, name, position=[0,0]):
         vbos = self.VBOs[name]
