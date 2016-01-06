@@ -154,17 +154,17 @@ class GLWidget(QGLWidget):
         self.texture_program = TextureProgram()
 
     def paintGL(self):
-        self.bind_fbo(self.fbo)
+        # self.bind_fbo(self.fbo)
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
         self._draw_scene(self.main_program)
-        self.unbind_fbo()
+        # self.unbind_fbo()
 
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
-        self.texture_program.draw(self.texture)
+        # glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+        # self.texture_program.draw(self.texture)
 
     def resizeGL(self, width, height):
         # projection matrix
-        self.adjustSize()
+        glViewport(0, 0, self.width(), self.height())
         self.main_program.set_projection_matrix(self._projection_matrix())
         self.texture_program.resize(width, height)
 
