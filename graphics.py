@@ -174,7 +174,10 @@ class Window(QMainWindow):
 
 class GLWidget(QGLWidget):
     def __init__(self, geometries, board, parent):
-        super(GLWidget, self).__init__(parent)
+        format = QGLFormat()
+        format.setSampleBuffers(True)
+        format.setSamples(8)
+        super(GLWidget, self).__init__(format, parent)
         self.camera = Camera()
         self.light = Light()
         self.mouse = Mouse()
@@ -318,7 +321,7 @@ class GLWidget(QGLWidget):
     def detect_collision(self, x, y, z):
         # normalize
         x = (2 * x) / self.width() - 1
-        y = (2 * y) / self.height() - 1
+        y = 1 - (2 * y) / self.height()
         z = 2 * z - 1
         position = np.array([x, y, z, 1])
         # print(position)
