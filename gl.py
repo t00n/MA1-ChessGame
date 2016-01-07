@@ -268,8 +268,9 @@ class GLWidget(QGLWidget):
         self.fbo_factory = FBOFactory()
         self.fbo_factory.resize(self.width(), self.height())
 
-        self.first_pass = self.fbo_factory.create()
-        self.second_pass = self.fbo_factory.create(depth_buffer=False)
+        self.gaussian_first = self.fbo_factory.create()
+        self.gaussian_second = self.fbo_factory.create(depth_buffer=False)
+        self.edge_detection = self.fbo_factory.create(depth_buffer=False)
         self.main_program = MainProgram()
         self.texture_program = TextureProgram()
         self.edge_program = EdgeDetectionProgram()
@@ -293,23 +294,29 @@ class GLWidget(QGLWidget):
         QTimer.singleShot(0, self.update)
 
     def paintGL(self):
-        self.first_pass.bind()
+        self.gaussian_first.bind()
         glEnable(GL_DEPTH_TEST)
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
         self._draw_scene()
-        self.first_pass.unbind()
+        self.gaussian_first.unbind()
 
-        self.second_pass.bind()
+        self.gaussian_second.bind()
         glDisable(GL_DEPTH_TEST)
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
-        self.gaussianblur1.set_fbo(self.first_pass)
+        self.gaussianblur1.set_fbo(self.gaussian_first)
         self.gaussianblur1.draw()
-        self.second_pass.unbind()
+        self.gaussian_second.unbind()
 
+        # self.edge_detection.bind()
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
-        self.gaussianblur2.set_fbo(self.second_pass)
+        self.gaussianblur2.set_fbo(self.gaussian_second)
         self.gaussianblur2.draw()
-        # self._draw_edge('WhitesRook', [0,0])
+        # self.edge_detection.unbind()
+
+        # glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+        # self.edge_program.set_fbo(self.edge_detection)
+        # self.edge_program.set_view_matrix(self._view_matrix())
+        # self._draw_edge('WhiteRook', [0,0])
         # self.texture_program.set_fbo(self.fbo)
         # self.texture_program.draw()
 
@@ -434,8 +441,6 @@ class GLWidget(QGLWidget):
                 self.main_program.draw(vbo, model, effect)
 
     def _draw_edge(self, name, position):
-        self.edge_program.set_view_matrix(self._view_matrix())
-        self.edge_program.set_fbo(self.fbo)
         vbos = self.VBOs[name]
         geo = self.geometries[name]
         for vbo in vbos:
