@@ -32,6 +32,12 @@ class FBO:
     def unbind(self):
         glBindFramebuffer(GL_FRAMEBUFFER, 0)
 
+    def __enter__(self):
+        self.bind()
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        self.unbind()
+
 class FBOFactory:
     def __init__(self):
         self.index = 0
@@ -217,8 +223,15 @@ class TextureProgram(Program):
 class GaussianBlurProgram(TextureProgram):
     def __init__(self, vertex_shader, fragment_shader):
         super(GaussianBlurProgram, self).__init__(vertex_shader, fragment_shader)
+        weights = np.zeros(5)
+        sigma2 = 4.0
+        weights[0] = gaussian(0,0,sigma2)
+        sum_weights = weights[0]
+        for i in range(1, 5):
+            weights[i] = gaussian(i, 0, sigma2)
+            sum_weights += 2 * weights[i]
+        weights = [x/sum_weights for x in weights]
 
-    def set_weights(self, weights):
         with self:
             for i in range(5):
                 weight = weights[i]
@@ -276,19 +289,8 @@ class GLWidget(QGLWidget):
         self.texture_program = TextureProgram()
         self.edge_program = EdgeDetectionProgram()
 
-        weights = np.zeros(5)
-        sigma2 = 4.0
-        weights[0] = gaussian(0,0,sigma2)
-        sum_weights = weights[0]
-        for i in range(1, 5):
-            weights[i] = gaussian(i, 0, sigma2)
-            sum_weights += 2 * weights[i]
-        weights = [x/sum_weights for x in weights]
-
         self.gaussianblur1 = GaussianBlurPass1Program()
-        self.gaussianblur1.set_weights(weights)
         self.gaussianblur2 = GaussianBlurPass2Program()
-        self.gaussianblur2.set_weights(weights)
 
         self.animations = []
 
@@ -297,34 +299,31 @@ class GLWidget(QGLWidget):
     def paintGL(self):
         oldIntensity = self.light.intensities
         # draw chessman to get contour
-        self.object_fbo.bind()
-        glEnable(GL_DEPTH_TEST)
+        with self.object_fbo:
+            glEnable(GL_DEPTH_TEST)
+            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+            self.light.intensities = [0,0,0,0]
+            self.main_program.set_view_matrix(self._view_matrix())
+            self.main_program.set_light(self.light)
+            self.main_program.set_camera(self.camera)
+            self._draw_object('WhiteRook', [0,0])
+
+        with self.edge_detection_fbo:
+            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+            self.edge_program.set_threshold(0.1)
+            self.edge_program.set_fbo(self.object_fbo)
+            self.edge_program.set_view_matrix(self._view_matrix())
+            self._draw_edge('WhiteRook', [0,0])
+
+        with self.gaussian_fbo:
+            glDisable(GL_DEPTH_TEST)
+            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+            self.gaussianblur1.set_fbo(self.edge_detection_fbo)
+            self.gaussianblur1.draw()
+
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
-        self.light.intensities = [0,0,0,0]
-        self.main_program.set_view_matrix(self._view_matrix())
-        self.main_program.set_light(self.light)
-        self.main_program.set_camera(self.camera)
-        self._draw_object('WhiteRook', [0,0])
-        self.object_fbo.unbind()
-
-        # self.edge_detection_fbo.bind()
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
-        self.edge_program.set_threshold(0.99)
-        self.edge_program.set_fbo(self.object_fbo)
-        self.edge_program.set_view_matrix(self._view_matrix())
-        self._draw_edge('WhiteRook', [0,0])
-        # self.edge_detection_fbo.unbind()
-
-        # self.gaussian_fbo.bind()
-        # glDisable(GL_DEPTH_TEST)
-        # glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
-        # self.gaussianblur1.set_fbo(self.edge_detection_fbo)
-        # self.gaussianblur1.draw()
-        # self.gaussian_fbo.unbind()
-
-        # glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
-        # self.gaussianblur2.set_fbo(self.gaussian_fbo)
-        # self.gaussianblur2.draw()
+        self.gaussianblur2.set_fbo(self.gaussian_fbo)
+        self.gaussianblur2.draw()
 
         # self.light.intensities = oldIntensity
         # self.main_program.set_light(self.light)
