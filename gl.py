@@ -97,7 +97,7 @@ class EdgeDetectionProgram(ObjectProgram):
         self.width_location = glGetUniformLocation(self.program, 'u_width')
         self.height_location = glGetUniformLocation(self.program, 'u_height')
         self.threshold_location = glGetUniformLocation(self.program, 'u_threshold')
-        self.texture_location = glGetUniformLocation(self.program, 'u_texture')
+        self.texture_location = glGetUniformLocation(self.program, 'u_render_texture')
 
         with self:
             glUniform1f(self.threshold_location, 0.5)
@@ -105,8 +105,8 @@ class EdgeDetectionProgram(ObjectProgram):
     def resize(self, projection, width, height):
         super(EdgeDetectionProgram, self).set_projection_matrix(projection)
         with self:
-            glUniform1f(self.width_location, width)
-            glUniform1f(self.height_location, height)
+            glUniform1f(self.width_location, float(width))
+            glUniform1f(self.height_location, float(height))
 
     def set_texture(self, texture):
         with self:
