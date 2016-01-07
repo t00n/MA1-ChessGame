@@ -246,6 +246,17 @@ class GaussianBlurPass2Program(GaussianBlurProgram):
     def __init__(self):
         super(GaussianBlurPass2Program, self).__init__('texture.vs', 'gaussianblur2.fs')
 
+class TwoTexturesProgram(TextureProgram):
+    def __init__(self):
+        super(TwoTexturesProgram, self).__init__('texture.vs', 'twotextures.fs')
+        self.texture2_location = glGetUniformLocation(self.program, 'u_texture2')
+
+    def set_fbo2(self, fbo):
+        with self:
+            glUniform1i(self.texture2_location, fbo.texture_unit);
+            glActiveTexture(GL_TEXTURE0 + fbo.texture_unit);
+            glBindTexture(GL_TEXTURE_2D, fbo.texture_id);
+
 class GLWidget(QGLWidget):
     def __init__(self, geometries, board, parent):
         format = QGLFormat()
@@ -286,10 +297,11 @@ class GLWidget(QGLWidget):
         self.gaussian1_fbo = self.fbo_factory.create(depth_buffer=False)
         self.gaussian2_fbo = self.fbo_factory.create()
         self.edge_detection_fbo = self.fbo_factory.create()
+
         self.main_program = MainProgram()
         self.texture_program = TextureProgram()
         self.edge_program = EdgeDetectionProgram()
-
+        self.twotextures_program = TwoTexturesProgram()
         self.gaussianblur1 = GaussianBlurPass1Program()
         self.gaussianblur2 = GaussianBlurPass2Program()
 
@@ -332,20 +344,33 @@ class GLWidget(QGLWidget):
             self.gaussianblur1.set_fbo(self.edge_detection_fbo)
             self.gaussianblur1.draw()
 
-        # with self.gaussian2_fbo:
-        glEnable (GL_BLEND)
-        glBlendFunc (GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
-        self.gaussianblur2.set_fbo(self.gaussian1_fbo)
-        self.gaussianblur2.draw()
-        glDisable(GL_BLEND)
+        with self.gaussian2_fbo:
+            glEnable (GL_BLEND)
+            glBlendFunc (GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
+            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+            self.gaussianblur2.set_fbo(self.gaussian1_fbo)
+            self.gaussianblur2.draw()
+            glDisable(GL_BLEND)
 
-        # self.light.intensities = oldIntensity
-        # self.main_program.set_light(self.light)
-        # glEnable(GL_DEPTH_TEST)
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+        glEnable(GL_DEPTH_TEST)
+        self.light.intensities = oldIntensity
+        self.main_program.set_light(self.light)
+        for name, position in self._scene_objects():
+            self._draw_object(name, position)
+
+        glEnable(GL_BLEND)
+        glBlendFunc(GL_ONE_MINUS_SRC_ALPHA, GL_DST_COLOR)
+
         # glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
-        # for name, position in self._scene_objects():
-        #     self._draw_object(name, position)
+        # self.texture_program.set_fbo(self.object_fbo)
+        # self.texture_program.draw()
+        self.texture_program.set_fbo(self.gaussian2_fbo)
+        self.texture_program.draw()
+        # self.twotextures_program.set_fbo(self.gaussian1_fbo)
+        # self.twotextures_program.set_fbo2(self.object_fbo)
+        # self.twotextures_program.draw()
+        glDisable(GL_BLEND)
 
 
     def resizeGL(self, width, height):
