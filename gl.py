@@ -21,6 +21,9 @@ def load_shaders(vert, frag):
 
 
 class Program:
+    def __init__(self, vertex_shader, fragment_shader):
+        self.program = load_shaders(vertex_shader, fragment_shader)
+
     def __enter__(self):
         shaders.glUseProgram(self.program)
 
@@ -28,13 +31,12 @@ class Program:
         shaders.glUseProgram(0)
 
 class ObjectProgram(Program):
-    def __init__(self, vertex_shader = 'obj.vs', fragment_shader = 'obj.fs'):
-        self.program = load_shaders(vertex_shader, fragment_shader)
+    def __init__(self, vertex_shader, fragment_shader):
+        super(ObjectProgram, self).__init__(vertex_shader, fragment_shader)
         self.projection_matrix_location = glGetUniformLocation(self.program, 'u_projection')
         self.view_matrix_location = glGetUniformLocation(self.program, 'u_view')
         self.model_matrix_location = glGetUniformLocation(self.program, 'u_model')
         self.position_location = glGetAttribLocation( self.program, 'a_position' )
-        self.normal_location = glGetAttribLocation(self.program, 'a_normal')
 
     def set_projection_matrix(self, matrix):
         with self:
@@ -44,26 +46,10 @@ class ObjectProgram(Program):
         with self:
             glUniformMatrix4fv(self.view_matrix_location, 1, GL_FALSE, matrix)
 
-    def draw(self, vbo, model, effect):
-        glUniformMatrix4fv(self.model_matrix_location, 1, GL_FALSE, model)
-        try:
-            vbo.bind()
-            try:
-                glEnableVertexAttribArray(self.position_location)
-                glEnableVertexAttribArray(self.normal_location)
-                glVertexAttribPointer(self.position_location, 3, GL_FLOAT, False, 24, vbo)
-                glVertexAttribPointer(self.normal_location, 3, GL_FLOAT, False, 24, vbo+12)
-                glDrawArrays(GL_TRIANGLES, 0, len(vbo))
-            finally:
-                glDisableVertexAttribArray(self.normal_location)
-                glDisableVertexAttribArray(self.position_location)
-        finally:
-            vbo.unbind()
-
 class MainProgram(ObjectProgram):
-    def __init__(self, vertex_shader = 'obj.vs', fragment_shader = 'obj.fs'):
-        super(MainProgram, self).__init__(vertex_shader, fragment_shader)
-
+    def __init__(self):
+        super(MainProgram, self).__init__('obj.vs', 'obj.fs')
+        self.normal_location = glGetAttribLocation(self.program, 'a_normal')
         self.light_position_location = glGetUniformLocation(self.program, 'u_light_position')
         self.light_intensities_location = glGetUniformLocation(self.program, 'u_light_intensities')
         self.camera_position_location = glGetUniformLocation(self.program, 'u_camera_position')
@@ -83,12 +69,63 @@ class MainProgram(ObjectProgram):
             glUniform3fv(self.camera_position_location, 1, camera.position)
 
     def draw(self, vbo, model, effect):
-        glUniform4fv(self.diffuse_location, 1, effect.diffuse)
-        glUniform4fv(self.ambient_location, 1, effect.ambient)
-        glUniform4fv(self.specular_location, 1, effect.specular)
-        glUniform1f(self.shininess_location, effect.shininess)
-        glUniform1f(self.index_of_refraction_location, effect.index_of_refraction)
-        super(MainProgram, self).draw(vbo, model, effect)
+        with self:
+            glUniform4fv(self.diffuse_location, 1, effect.diffuse)
+            glUniform4fv(self.ambient_location, 1, effect.ambient)
+            glUniform4fv(self.specular_location, 1, effect.specular)
+            glUniform1f(self.shininess_location, effect.shininess)
+            glUniform1f(self.index_of_refraction_location, effect.index_of_refraction)
+            glUniformMatrix4fv(self.model_matrix_location, 1, GL_FALSE, model)
+            try:
+                vbo.bind()
+                try:
+                    glEnableVertexAttribArray(self.position_location)
+                    glEnableVertexAttribArray(self.normal_location)
+                    glVertexAttribPointer(self.position_location, 3, GL_FLOAT, False, 24, vbo)
+                    glVertexAttribPointer(self.normal_location, 3, GL_FLOAT, False, 24, vbo+12)
+                    glDrawArrays(GL_TRIANGLES, 0, len(vbo))
+                finally:
+                    glDisableVertexAttribArray(self.normal_location)
+                    glDisableVertexAttribArray(self.position_location)
+            finally:
+                vbo.unbind()
+
+class EdgeDetectionProgram(ObjectProgram):
+    def __init__(self):
+        super(EdgeDetectionProgram, self).__init__('edgedetection.vs', 'edgedetection.fs')
+
+        self.width_location = glGetUniformLocation(self.program, 'u_width')
+        self.height_location = glGetUniformLocation(self.program, 'u_height')
+        self.threshold_location = glGetUniformLocation(self.program, 'u_threshold')
+        self.texture_location = glGetUniformLocation(self.program, 'u_texture')
+
+        with self:
+            glUniform1f(self.threshold_location, 0.5)
+
+    def resize(self, projection, width, height):
+        super(EdgeDetectionProgram, self).set_projection_matrix(projection)
+        with self:
+            glUniform1f(self.width_location, width)
+            glUniform1f(self.height_location, height)
+
+    def set_texture(self, texture):
+        with self:
+            glUniform1i(self.texture_location, texture)
+
+    def draw(self, vbo, model):
+        with self:
+            glUniformMatrix4fv(self.model_matrix_location, 1, GL_FALSE, model)
+            try:
+                vbo.bind()
+                try:
+                    glEnableVertexAttribArray(self.position_location)
+                    glVertexAttribPointer(self.position_location, 3, GL_FLOAT, False, 24, vbo)
+                    glDrawArrays(GL_TRIANGLES, 0, len(vbo))
+                finally:
+                    glDisableVertexAttribArray(self.position_location)
+            finally:
+                vbo.unbind()
+
 
 class TextureProgram(Program):
     def __init__(self):
@@ -101,21 +138,20 @@ class TextureProgram(Program):
         self.height_location = glGetUniformLocation(self.program, 'u_height')
 
     def draw(self, texture):
-        shaders.glUseProgram(self.program)
-        glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_2D, texture);
-        glUniform1i(self.texture_location, 0);
-        try:
-            self.square.bind()
+        with self:
+            glActiveTexture(GL_TEXTURE0);
+            glBindTexture(GL_TEXTURE_2D, texture);
+            glUniform1i(self.texture_location, 0);
             try:
-                glEnableVertexAttribArray(self.position_location)
-                glVertexAttribPointer(self.position_location, 2, GL_FLOAT, False, 8, self.square)
-                glDrawArrays(GL_QUADS, 0, len(self.square))
+                self.square.bind()
+                try:
+                    glEnableVertexAttribArray(self.position_location)
+                    glVertexAttribPointer(self.position_location, 2, GL_FLOAT, False, 8, self.square)
+                    glDrawArrays(GL_QUADS, 0, len(self.square))
+                finally:
+                    glDisableVertexAttribArray(self.position_location)
             finally:
-                glDisableVertexAttribArray(self.position_location)
-        finally:
-            self.square.unbind()
-        shaders.glUseProgram(0)
+                self.square.unbind()
 
     def resize(self, width, height):
         with self:
@@ -160,25 +196,27 @@ class GLWidget(QGLWidget):
         self.fbo, self.texture, self.depth = self.create_fbo()
         self.main_program = MainProgram()
         self.texture_program = TextureProgram()
+        self.edge_program = EdgeDetectionProgram()
 
         self.animations = []
 
         QTimer.singleShot(0, self.update)
 
     def paintGL(self):
-        # self.bind_fbo(self.fbo)
+        self.bind_fbo(self.fbo)
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
-        self._draw_scene(self.main_program)
-        # self.unbind_fbo()
+        self._draw_scene()
+        self.unbind_fbo()
 
-        # glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
-        # self.texture_program.draw(self.texture)
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+        self._draw_edge('Chessboard', [0,0])
 
     def resizeGL(self, width, height):
         # projection matrix
         glViewport(0, 0, self.width(), self.height())
         self.main_program.set_projection_matrix(self._projection_matrix())
         self.texture_program.resize(width, height)
+        self.edge_program.resize(self._projection_matrix(), width, height)
 
     def mousePressEvent(self, event):
         self.mouse.x = event.pos().x()
@@ -273,51 +311,58 @@ class GLWidget(QGLWidget):
     def unbind_fbo(self):
         glBindFramebuffer(GL_FRAMEBUFFER, 0)
 
-    def _draw_scene_object(self, program, name, position=[0,0]):
+    def _scene_objects(self):
+        yield 'Chessboard', [0, 0]
+        for cell in self.board:
+            if isinstance(cell, King):
+                if cell.color == Color.WHITE:
+                    name = 'WhiteKing'
+                else:
+                    name = 'BlackKing'
+            elif isinstance(cell, Queen):
+                if cell.color == Color.WHITE:
+                    name = 'WhiteQueen'
+                else:
+                    name = 'BlackQueen'
+            elif isinstance(cell, Bishop):
+                if cell.color == Color.WHITE:
+                    name = 'WhiteBishop'
+                else:
+                    name = 'BlackBishop'
+            elif isinstance(cell, Knight):
+                if cell.color == Color.WHITE:
+                    name = 'WhiteKnight'
+                else:
+                    name = 'BlackKnight'
+            elif isinstance(cell, Rook):
+                if cell.color == Color.WHITE:
+                    name = 'WhiteRook'
+                else:
+                    name = 'BlackRook'
+            elif isinstance(cell, Pawn):
+                if cell.color == Color.WHITE:
+                    name = 'WhitePawn'
+                else:
+                    name = 'BlackPawn'
+            yield name, cell.position
+
+    def _draw_scene(self):
+        self.main_program.set_view_matrix(self._view_matrix())
+        self.main_program.set_light(self.light)
+        self.main_program.set_camera(self.camera)
+        for name, position in self._scene_objects():
+            vbos = self.VBOs[name]
+            geo = self.geometries[name]
+            for i in range(len(vbos)):
+                vbo = vbos[i]
+                effect = geo.materials[i].effect
+                model = self._model_matrix(geo, position)
+                self.main_program.draw(vbo, model, effect)
+
+    def _draw_edge(self, name, position):
+        self.edge_program.set_view_matrix(self._view_matrix())
         vbos = self.VBOs[name]
         geo = self.geometries[name]
-        for i in range(len(vbos)):
-            vbo = vbos[i]
-            effect = geo.materials[i].effect
+        for vbo in vbos:
             model = self._model_matrix(geo, position)
-            program.draw(vbo, model, effect)
-
-    def _draw_scene(self, program):
-        program.set_view_matrix(self._view_matrix())
-        program.set_light(self.light)
-        program.set_camera(self.camera)
-
-        with program:
-            self._draw_scene_object(program, 'Chessboard')
-            for cell in self.board:
-                if isinstance(cell, King):
-                    if cell.color == Color.WHITE:
-                        name = 'WhiteKing'
-                    else:
-                        name = 'BlackKing'
-                elif isinstance(cell, Queen):
-                    if cell.color == Color.WHITE:
-                        name = 'WhiteQueen'
-                    else:
-                        name = 'BlackQueen'
-                elif isinstance(cell, Bishop):
-                    if cell.color == Color.WHITE:
-                        name = 'WhiteBishop'
-                    else:
-                        name = 'BlackBishop'
-                elif isinstance(cell, Knight):
-                    if cell.color == Color.WHITE:
-                        name = 'WhiteKnight'
-                    else:
-                        name = 'BlackKnight'
-                elif isinstance(cell, Rook):
-                    if cell.color == Color.WHITE:
-                        name = 'WhiteRook'
-                    else:
-                        name = 'BlackRook'
-                elif isinstance(cell, Pawn):
-                    if cell.color == Color.WHITE:
-                        name = 'WhitePawn'
-                    else:
-                        name = 'BlackPawn'
-                self._draw_scene_object(program, name, cell.position)
+            self.edge_program.draw(vbo, model)
