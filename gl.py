@@ -282,9 +282,10 @@ class GLWidget(QGLWidget):
         self.fbo_factory = FBOFactory()
         self.fbo_factory.resize(self.width(), self.height())
 
-        self.object_fbo = self.fbo_factory.create(depth_buffer=False)
+        self.object_fbo = self.fbo_factory.create()
+        self.gaussian1_fbo = self.fbo_factory.create(depth_buffer=False)
+        self.gaussian2_fbo = self.fbo_factory.create()
         self.edge_detection_fbo = self.fbo_factory.create()
-        self.gaussian_fbo = self.fbo_factory.create(depth_buffer=False)
         self.main_program = MainProgram()
         self.texture_program = TextureProgram()
         self.edge_program = EdgeDetectionProgram()
@@ -308,22 +309,36 @@ class GLWidget(QGLWidget):
             self.main_program.set_camera(self.camera)
             self._draw_object('WhiteRook', [0,0])
 
+        with self.gaussian1_fbo:
+            glDisable(GL_DEPTH_TEST)
+            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+            self.gaussianblur1.set_fbo(self.object_fbo)
+            self.gaussianblur1.draw()
+
+        with self.gaussian2_fbo:
+            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+            self.gaussianblur2.set_fbo(self.gaussian1_fbo)
+            self.gaussianblur2.draw()
+
         with self.edge_detection_fbo:
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
             self.edge_program.set_threshold(0.1)
-            self.edge_program.set_fbo(self.object_fbo)
+            self.edge_program.set_fbo(self.gaussian2_fbo)
             self.edge_program.set_view_matrix(self._view_matrix())
             self._draw_edge('WhiteRook', [0,0])
 
-        with self.gaussian_fbo:
-            glDisable(GL_DEPTH_TEST)
+        with self.gaussian1_fbo:
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
             self.gaussianblur1.set_fbo(self.edge_detection_fbo)
             self.gaussianblur1.draw()
 
+        # with self.gaussian2_fbo:
+        glEnable (GL_BLEND)
+        glBlendFunc (GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
-        self.gaussianblur2.set_fbo(self.gaussian_fbo)
+        self.gaussianblur2.set_fbo(self.gaussian1_fbo)
         self.gaussianblur2.draw()
+        glDisable(GL_BLEND)
 
         # self.light.intensities = oldIntensity
         # self.main_program.set_light(self.light)
