@@ -149,8 +149,9 @@ class EdgeDetectionProgram(ObjectProgram):
         self.threshold_location = glGetUniformLocation(self.program, 'u_threshold')
         self.texture_location = glGetUniformLocation(self.program, 'u_render_texture')
 
+    def set_threshold(self, threshold):
         with self:
-            glUniform1f(self.threshold_location, 0.3)
+            glUniform1f(self.threshold_location, threshold)
 
     def resize(self, projection, width, height):
         super(EdgeDetectionProgram, self).set_projection_matrix(projection)
@@ -268,10 +269,9 @@ class GLWidget(QGLWidget):
         self.fbo_factory = FBOFactory()
         self.fbo_factory.resize(self.width(), self.height())
 
-        self.gaussian_first = self.fbo_factory.create()
-        self.gaussian_second = self.fbo_factory.create(depth_buffer=False)
-        self.edge_detection = self.fbo_factory.create(depth_buffer=False)
-        self.bloom_effect = self.fbo_factory.create()
+        self.object_fbo = self.fbo_factory.create(depth_buffer=False)
+        self.edge_detection_fbo = self.fbo_factory.create()
+        self.gaussian_fbo = self.fbo_factory.create(depth_buffer=False)
         self.main_program = MainProgram()
         self.texture_program = TextureProgram()
         self.edge_program = EdgeDetectionProgram()
@@ -297,7 +297,7 @@ class GLWidget(QGLWidget):
     def paintGL(self):
         oldIntensity = self.light.intensities
         # draw chessman to get contour
-        self.gaussian_first.bind()
+        self.object_fbo.bind()
         glEnable(GL_DEPTH_TEST)
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
         self.light.intensities = [0,0,0,0]
@@ -305,34 +305,33 @@ class GLWidget(QGLWidget):
         self.main_program.set_light(self.light)
         self.main_program.set_camera(self.camera)
         self._draw_object('WhiteRook', [0,0])
-        self.gaussian_first.unbind()
+        self.object_fbo.unbind()
 
-        self.gaussian_second.bind()
-        glDisable(GL_DEPTH_TEST)
+        # self.edge_detection_fbo.bind()
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
-        self.gaussianblur1.set_fbo(self.gaussian_first)
-        self.gaussianblur1.draw()
-        self.gaussian_second.unbind()
-
-        self.edge_detection.bind()
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
-        self.gaussianblur2.set_fbo(self.gaussian_second)
-        self.gaussianblur2.draw()
-        self.edge_detection.unbind()
-
-        self.bloom_effect.bind()
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
-        self.edge_program.set_fbo(self.edge_detection)
+        self.edge_program.set_threshold(0.99)
+        self.edge_program.set_fbo(self.object_fbo)
         self.edge_program.set_view_matrix(self._view_matrix())
         self._draw_edge('WhiteRook', [0,0])
-        self.bloom_effect.unbind()
+        # self.edge_detection_fbo.unbind()
 
-        self.light.intensities = oldIntensity
-        self.main_program.set_light(self.light)
-        glEnable(GL_DEPTH_TEST)
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
-        for name, position in self._scene_objects():
-            self._draw_object(name, position)
+        # self.gaussian_fbo.bind()
+        # glDisable(GL_DEPTH_TEST)
+        # glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+        # self.gaussianblur1.set_fbo(self.edge_detection_fbo)
+        # self.gaussianblur1.draw()
+        # self.gaussian_fbo.unbind()
+
+        # glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+        # self.gaussianblur2.set_fbo(self.gaussian_fbo)
+        # self.gaussianblur2.draw()
+
+        # self.light.intensities = oldIntensity
+        # self.main_program.set_light(self.light)
+        # glEnable(GL_DEPTH_TEST)
+        # glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+        # for name, position in self._scene_objects():
+        #     self._draw_object(name, position)
 
 
     def resizeGL(self, width, height):
