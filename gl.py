@@ -153,7 +153,7 @@ class GLWidget(QGLWidget):
         self.main_program = MainProgram()
         self.texture_program = TextureProgram()
 
-        self.animations = []
+        self.animations = [Animation(self.board.board[0][0], [7,0])]
 
         QTimer.singleShot(0, self.update)
 
@@ -224,12 +224,12 @@ class GLWidget(QGLWidget):
         return look_at(self.camera.position, self.camera.direction, (0,1,0))
 
     def _model_matrix(self, geo, position):
-        return reduce(np.dot, [translate([(position[0])*6, 0, (position[1])*6]),
-                                    translate(geo.translation),
-                                    rotate(geo.rotation[2], [0, 0, 1]),
-                                    rotate(geo.rotation[1], [0, 1, 0]),
-                                    rotate(geo.rotation[0], [1, 0, 0]),
-                                    scale(geo.scaling)])
+        return reduce(np.dot, [scale(geo.scaling),
+                               rotate(geo.rotation[0], [1, 0, 0]),
+                               rotate(geo.rotation[1], [0, 1, 0]),
+                               rotate(geo.rotation[2], [0, 0, 1]),
+                               translate(geo.translation),
+                               translate([(position[0])*4, 0, (position[1])*4])])
 
     def create_fbo(self):
         fbo = glGenFramebuffers(1)

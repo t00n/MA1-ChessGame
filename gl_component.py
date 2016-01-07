@@ -50,8 +50,6 @@ class Camera(MixinHasPosition):
         self.x += direction[0] * dist
         self.y += dist
         self.z += direction[2] * dist
-        if self.y < 1:
-            self.y = 1
         new_norm = np.linalg.norm([self.x, self.y, self.z])
         self.x *= previous_norm / new_norm
         self.y *= previous_norm / new_norm
