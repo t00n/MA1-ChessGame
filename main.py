@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 from chess import Chessboard
 from gui import Window
 from gl_data import geometries

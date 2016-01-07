@@ -10,7 +10,6 @@ from collections import defaultdict
 from functools import reduce
 from util import look_at, gaussian
 from gl_component import Mouse, Light, Camera, Animation
-import matplotlib.pyplot as plt
 
 from chess import King, Queen, Bishop, Knight, Rook, Pawn, Color
 
@@ -18,6 +17,16 @@ def load_shaders(vert, frag):
     VERTEX_SHADER = shaders.compileShader(open('shaders/' + vert).read(), GL_VERTEX_SHADER)
     FRAGMENT_SHADER = shaders.compileShader(open('shaders/' + frag).read(), GL_FRAGMENT_SHADER)
     return shaders.compileProgram(VERTEX_SHADER, FRAGMENT_SHADER)
+
+class Texture2D:
+    def __init__(self, unit, _id):
+        self.unit = unit
+        self.id = _id
+
+    def bind(self, location):
+        glUniform1i(location, self.unit)
+        glActiveTexture(GL_TEXTURE0 + self.unit)
+        glBindTexture(GL_TEXTURE_2D, self.id)
 
 class FBO:
     def __init__(self, fbo, texture_unit, texture_id, depth_id):

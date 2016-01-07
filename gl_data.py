@@ -1,7 +1,6 @@
 from collada import *
 from collada.scene import GeometryNode
 import numpy as np
-# from vispy.util.transforms import *
 
 class Material:
     def __init__(self, mat):
