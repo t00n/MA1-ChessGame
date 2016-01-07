@@ -19,6 +19,56 @@ def load_shaders(vert, frag):
     FRAGMENT_SHADER = shaders.compileShader(open('shaders/' + frag).read(), GL_FRAGMENT_SHADER)
     return shaders.compileProgram(VERTEX_SHADER, FRAGMENT_SHADER)
 
+class FBO:
+    def __init__(self, fbo, texture_unit, texture_id, depth_id):
+        self.fbo = fbo
+        self.texture_unit = texture_unit
+        self.texture_id = texture_id
+        self.depth_id = depth_id
+
+    def bind(self):
+        glBindFramebuffer(GL_FRAMEBUFFER, self.fbo)
+
+    def unbind(self):
+        glBindFramebuffer(GL_FRAMEBUFFER, 0)
+
+class FBOFactory:
+    def __init__(self):
+        self.index = 0
+
+    def resize(self, width, height):
+        self.width = width
+        self.height = height
+
+    def create(self, texture_type = GL_LINEAR, depth_buffer = True):
+        fbo = glGenFramebuffers(1)
+        glBindFramebuffer(GL_FRAMEBUFFER, fbo)
+
+        texture = glGenTextures(1)
+        glActiveTexture(GL_TEXTURE0 + self.index)
+        glBindTexture(GL_TEXTURE_2D, texture)
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, self.width, self.height, 0, GL_RGBA, GL_UNSIGNED_BYTE, None)
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, texture_type)
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, texture_type)
+
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + self.index, GL_TEXTURE_2D, texture, 0)
+
+        depth = -1
+        if depth_buffer:
+            depth = glGenRenderbuffers(1)
+            glBindRenderbuffer(GL_RENDERBUFFER, depth)
+            glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, self.width, self.height)
+
+            glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, depth)
+
+        glDrawBuffers(1, [GL_COLOR_ATTACHMENT0 + self.index])
+
+        glBindFramebuffer(GL_FRAMEBUFFER, 0)
+        self.index += 1
+
+        return FBO(fbo, self.index - 1, texture, depth)
+
+
 
 class Program:
     def __init__(self, vertex_shader, fragment_shader):
@@ -108,9 +158,11 @@ class EdgeDetectionProgram(ObjectProgram):
             glUniform1f(self.width_location, float(width))
             glUniform1f(self.height_location, float(height))
 
-    def set_texture(self, texture):
+    def set_fbo(self, fbo):
         with self:
-            glUniform1i(self.texture_location, texture)
+            glUniform1i(self.texture_location, fbo.texture_unit)
+            glActiveTexture(GL_TEXTURE0 + fbo.texture_unit)
+            glBindTexture(GL_TEXTURE_2D, fbo.texture_id)
 
     def draw(self, vbo, model):
         with self:
@@ -137,11 +189,14 @@ class TextureProgram(Program):
         self.width_location = glGetUniformLocation(self.program, 'u_width')
         self.height_location = glGetUniformLocation(self.program, 'u_height')
 
-    def draw(self, texture):
+    def set_fbo(self, fbo):
         with self:
-            glActiveTexture(GL_TEXTURE0);
-            glBindTexture(GL_TEXTURE_2D, texture);
-            glUniform1i(self.texture_location, 0);
+            glUniform1i(self.texture_location, fbo.texture_unit);
+            glActiveTexture(GL_TEXTURE0 + fbo.texture_unit);
+            glBindTexture(GL_TEXTURE_2D, fbo.texture_id);
+
+    def draw(self):
+        with self:
             try:
                 self.square.bind()
                 try:
@@ -193,7 +248,10 @@ class GLWidget(QGLWidget):
         glCullFace(GL_FRONT)
         glEnable(GL_DEPTH_TEST)
 
-        self.fbo, self.texture, self.depth = self.create_fbo()
+        self.fbo_factory = FBOFactory()
+        self.fbo_factory.resize(self.width(), self.height())
+
+        self.fbo = self.fbo_factory.create()
         self.main_program = MainProgram()
         self.texture_program = TextureProgram()
         self.edge_program = EdgeDetectionProgram()
@@ -203,13 +261,15 @@ class GLWidget(QGLWidget):
         QTimer.singleShot(0, self.update)
 
     def paintGL(self):
-        self.bind_fbo(self.fbo)
+        self.fbo.bind()
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
         self._draw_scene()
-        self.unbind_fbo()
+        self.fbo.unbind()
 
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
-        self._draw_edge('Chessboard', [0,0])
+        # self._draw_edge('WhitesRook', [0,0])
+        self.texture_program.set_fbo(self.fbo)
+        self.texture_program.draw()
 
     def resizeGL(self, width, height):
         # projection matrix
@@ -217,6 +277,7 @@ class GLWidget(QGLWidget):
         self.main_program.set_projection_matrix(self._projection_matrix())
         self.texture_program.resize(width, height)
         self.edge_program.resize(self._projection_matrix(), width, height)
+        self.fbo_factory.resize(width, height)
 
     def mousePressEvent(self, event):
         self.mouse.x = event.pos().x()
@@ -280,37 +341,6 @@ class GLWidget(QGLWidget):
                                translate(geo.translation),
                                translate([(position[0])*4, 0, (position[1])*4])])
 
-    def create_fbo(self):
-        fbo = glGenFramebuffers(1)
-        glBindFramebuffer(GL_FRAMEBUFFER, fbo)
-
-        texture = glGenTextures(1)
-        glActiveTexture(GL_TEXTURE0)
-        glBindTexture(GL_TEXTURE_2D, texture)
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, self.width(), self.height(), 0, GL_RGBA, GL_UNSIGNED_BYTE, None)
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR)
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR)
-
-        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texture, 0)
-
-        depth = glGenRenderbuffers(1)
-        glBindRenderbuffer(GL_RENDERBUFFER, depth)
-        glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, self.width(), self.height())
-
-        glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, depth)
-
-        glDrawBuffers(1, [GL_COLOR_ATTACHMENT0])
-
-        self.unbind_fbo()
-
-        return fbo, texture, depth
-
-    def bind_fbo(self, fbo):
-        glBindFramebuffer(GL_FRAMEBUFFER, fbo)
-
-    def unbind_fbo(self):
-        glBindFramebuffer(GL_FRAMEBUFFER, 0)
-
     def _scene_objects(self):
         yield 'Chessboard', [0, 0]
         for cell in self.board:
@@ -361,6 +391,7 @@ class GLWidget(QGLWidget):
 
     def _draw_edge(self, name, position):
         self.edge_program.set_view_matrix(self._view_matrix())
+        self.edge_program.set_fbo(self.fbo)
         vbos = self.VBOs[name]
         geo = self.geometries[name]
         for vbo in vbos:
