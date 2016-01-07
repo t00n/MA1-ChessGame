@@ -10,6 +10,7 @@ from collections import defaultdict
 from functools import reduce
 from util import look_at
 from gl_component import Mouse, Light, Camera, Animation
+import matplotlib.pyplot as plt
 
 from chess import King, Queen, Bishop, Knight, Rook, Pawn, Color
 
@@ -153,7 +154,7 @@ class GLWidget(QGLWidget):
         self.main_program = MainProgram()
         self.texture_program = TextureProgram()
 
-        self.animations = [Animation(self.board.board[0][0], [7,0])]
+        self.animations = []
 
         QTimer.singleShot(0, self.update)
 
@@ -176,7 +177,7 @@ class GLWidget(QGLWidget):
         self.mouse.x = event.pos().x()
         self.mouse.y = event.pos().y()
         glReadBuffer(GL_BACK)
-        z = glReadPixels(self.mouse.x, self.mouse.y, 1, 1, GL_DEPTH_COMPONENT, GL_FLOAT)[0][0]
+        z = glReadPixels(self.mouse.x, self.mouse.y, self.width(), self.height(), GL_DEPTH_COMPONENT, GL_FLOAT)[0][0]
         self._detect_collision(self.mouse.x, self.mouse.y, z)
 
     def mouseMoveEvent(self, event):
@@ -187,6 +188,9 @@ class GLWidget(QGLWidget):
 
         self.mouse.x = event.pos().x()
         self.mouse.y = event.pos().y()
+
+    def wheelEvent(self, event):
+        self.camera.go_forward(event.delta()/5000)
 
     def update(self):
         try:
@@ -205,9 +209,9 @@ class GLWidget(QGLWidget):
         z = 2 * z - 1
         position = np.array([x, y, z, 1])
         # print(position)
-        world_to_cam = self._projection_matrix().dot(self._view_matrix())
-        cam_to_world = np.linalg.inv(self._view_matrix()).dot(np.linalg.inv(self._projection_matrix()))
-        position = cam_to_world.dot(position)
+        # world_to_cam = self._projection_matrix().dot(self._view_matrix())
+        # cam_to_world = np.linalg.inv(self._view_matrix()).dot(np.linalg.inv(self._projection_matrix()))
+        # position = cam_to_world.dot(position)
         # print(position)
         # position = [position[i] / position[3] for i in range(4)]
         # print(position)

@@ -3,13 +3,43 @@ from util import normalize
 
 class MixinHasPosition:
     def __init__(self, x, y, z):
-        self.x = x
-        self.y = y 
-        self.z = z
+        self._position = np.zeros(3)
+        self.position = [x, y, z]
 
-    @property
-    def position(self):
-        return [self.x, self.y, self.z]
+    def x_getter(self):
+        return self._position[0]
+
+    def x_setter(self, val):
+        self._position[0] = val
+
+    x = property(x_getter, x_setter)
+
+    def y_getter(self):
+        return self._position[1]
+
+    def y_setter(self, val):
+        if val >= 1:
+            self._position[1] = val
+
+    y = property(y_getter, y_setter)
+
+    def z_getter(self):
+        return self._position[2]
+
+    def z_setter(self, val):
+        self._position[2] = val
+
+    z = property(z_getter, z_setter)
+
+    def pos_getter(self):
+        return self._position
+
+    def pos_setter(self, value):
+        self.x = value[0]
+        self.y = value[1]
+        self.z = value[2]
+
+    position = property(pos_getter, pos_setter)
 
 class MixinHasDirection:
     def __init__(self, x, y, z):
@@ -33,7 +63,7 @@ class Camera(MixinHasPosition):
     # camera always looks to origin (0,0,0)
     @property
     def direction(self):
-        return (-self.x, -self.y, -self.z)
+        return np.array([-self.x, -self.y, -self.z])
 
     def go_right(self, dist=0.1):
         perpendicular = normalize([-self.z, self.x])
@@ -54,6 +84,9 @@ class Camera(MixinHasPosition):
         self.x *= previous_norm / new_norm
         self.y *= previous_norm / new_norm
         self.z *= previous_norm / new_norm
+
+    def go_forward(self, dist=0.1):
+        self.position += self.direction * dist
 
 class Light(MixinHasPosition):
     def __init__(self):
