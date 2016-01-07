@@ -27,23 +27,14 @@ class Program:
     def __exit__(self, exc_type, exc_value, traceback):
         shaders.glUseProgram(0)
 
-class MainProgram(Program):
+class ObjectProgram(Program):
     def __init__(self, vertex_shader = 'obj.vs', fragment_shader = 'obj.fs'):
         self.program = load_shaders(vertex_shader, fragment_shader)
-
         self.projection_matrix_location = glGetUniformLocation(self.program, 'u_projection')
         self.view_matrix_location = glGetUniformLocation(self.program, 'u_view')
         self.model_matrix_location = glGetUniformLocation(self.program, 'u_model')
-        self.light_position_location = glGetUniformLocation(self.program, 'u_light_position')
-        self.light_intensities_location = glGetUniformLocation(self.program, 'u_light_intensities')
-        self.camera_position_location = glGetUniformLocation(self.program, 'u_camera_position')
         self.position_location = glGetAttribLocation( self.program, 'a_position' )
         self.normal_location = glGetAttribLocation(self.program, 'a_normal')
-        self.diffuse_location = glGetUniformLocation(self.program, 'u_diffuse')
-        self.ambient_location = glGetUniformLocation(self.program, 'u_ambient')
-        self.specular_location = glGetUniformLocation(self.program, 'u_specular')
-        self.shininess_location = glGetUniformLocation(self.program, 'u_shininess')
-        self.index_of_refraction_location = glGetUniformLocation(self.program, 'u_index_of_refraction')
 
     def set_projection_matrix(self, matrix):
         with self:
@@ -52,6 +43,35 @@ class MainProgram(Program):
     def set_view_matrix(self, matrix):
         with self:
             glUniformMatrix4fv(self.view_matrix_location, 1, GL_FALSE, matrix)
+
+    def draw(self, vbo, model, effect):
+        glUniformMatrix4fv(self.model_matrix_location, 1, GL_FALSE, model)
+        try:
+            vbo.bind()
+            try:
+                glEnableVertexAttribArray(self.position_location)
+                glEnableVertexAttribArray(self.normal_location)
+                glVertexAttribPointer(self.position_location, 3, GL_FLOAT, False, 24, vbo)
+                glVertexAttribPointer(self.normal_location, 3, GL_FLOAT, False, 24, vbo+12)
+                glDrawArrays(GL_TRIANGLES, 0, len(vbo))
+            finally:
+                glDisableVertexAttribArray(self.normal_location)
+                glDisableVertexAttribArray(self.position_location)
+        finally:
+            vbo.unbind()
+
+class MainProgram(ObjectProgram):
+    def __init__(self, vertex_shader = 'obj.vs', fragment_shader = 'obj.fs'):
+        super(MainProgram, self).__init__(vertex_shader, fragment_shader)
+
+        self.light_position_location = glGetUniformLocation(self.program, 'u_light_position')
+        self.light_intensities_location = glGetUniformLocation(self.program, 'u_light_intensities')
+        self.camera_position_location = glGetUniformLocation(self.program, 'u_camera_position')
+        self.diffuse_location = glGetUniformLocation(self.program, 'u_diffuse')
+        self.ambient_location = glGetUniformLocation(self.program, 'u_ambient')
+        self.specular_location = glGetUniformLocation(self.program, 'u_specular')
+        self.shininess_location = glGetUniformLocation(self.program, 'u_shininess')
+        self.index_of_refraction_location = glGetUniformLocation(self.program, 'u_index_of_refraction')
 
     def set_light(self, light):
         with self:
@@ -68,20 +88,7 @@ class MainProgram(Program):
         glUniform4fv(self.specular_location, 1, effect.specular)
         glUniform1f(self.shininess_location, effect.shininess)
         glUniform1f(self.index_of_refraction_location, effect.index_of_refraction)
-        glUniformMatrix4fv(self.model_matrix_location, 1, GL_FALSE, model)
-        try:
-            vbo.bind()
-            try:
-                glEnableVertexAttribArray(self.position_location)
-                glEnableVertexAttribArray(self.normal_location)
-                glVertexAttribPointer(self.position_location, 3, GL_FLOAT, False, 24, vbo)
-                glVertexAttribPointer(self.normal_location, 3, GL_FLOAT, False, 24, vbo+12)
-                glDrawArrays(GL_TRIANGLES, 0, len(vbo))
-            finally:
-                glDisableVertexAttribArray(self.normal_location)
-                glDisableVertexAttribArray(self.position_location)
-        finally:
-            vbo.unbind()
+        super(MainProgram, self).draw(vbo, model, effect)
 
 class TextureProgram(Program):
     def __init__(self):
