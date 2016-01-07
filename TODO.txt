@@ -4,9 +4,10 @@
 Bump mapping on the chessboard
 # Lighting parameters (position, intensities) + HUD
 Glowing effect on chessmen (effect blur or something like that)
-Chessman moves (animations)
+# Chessman moves (animations)
 Reflective and refractive lighting
-Fix Rook, Knights, Chessboard
+# Fix Rook, Knights, Chessboard
+Fix Chessboard
 
 # Optional - real time
 Select chessman on click
