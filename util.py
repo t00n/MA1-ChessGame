@@ -1,13 +1,16 @@
-import numpy
+import numpy as np
+
+def gaussian(x, mu, sig):
+    return np.exp(-np.power(x - mu, 2.) / (2 * np.power(sig, 2.)))
 
 def look_at(eye, center, up):
-    ret = numpy.eye(4, dtype=numpy.float32)
+    ret = np.eye(4, dtype=np.float32)
 
-    Z = numpy.array(eye, numpy.float32) - numpy.array(center, numpy.float32)
+    Z = np.array(eye, np.float32) - np.array(center, np.float32)
     Z = normalize(Z)
-    Y = numpy.array(up, numpy.float32)
-    X = numpy.cross(Y, Z)
-    Y = numpy.cross(Z, X)
+    Y = np.array(up, np.float32)
+    X = np.cross(Y, Z)
+    Y = np.cross(Z, X)
 
     X = normalize(X)
     Y = normalize(Y)
@@ -15,15 +18,15 @@ def look_at(eye, center, up):
     ret[0][0] = X[0]
     ret[1][0] = X[1]
     ret[2][0] = X[2]
-    ret[3][0] = -numpy.dot(X, eye)
+    ret[3][0] = -np.dot(X, eye)
     ret[0][1] = Y[0]
     ret[1][1] = Y[1]
     ret[2][1] = Y[2]
-    ret[3][1] = -numpy.dot(Y, eye)
+    ret[3][1] = -np.dot(Y, eye)
     ret[0][2] = Z[0]
     ret[1][2] = Z[1]
     ret[2][2] = Z[2]
-    ret[3][2] = -numpy.dot(Z, eye)
+    ret[3][2] = -np.dot(Z, eye)
     ret[0][3] = 0
     ret[1][3] = 0
     ret[2][3] = 0
@@ -31,7 +34,7 @@ def look_at(eye, center, up):
     return ret
 
 def normalize(v):
-    norm=numpy.linalg.norm(v)
+    norm=np.linalg.norm(v)
     if norm: 
        return v/norm
     return v

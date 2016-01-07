@@ -8,7 +8,7 @@ import numpy as np
 from vispy.util.transforms import *
 from collections import defaultdict
 from functools import reduce
-from util import look_at
+from util import look_at, gaussian
 from gl_component import Mouse, Light, Camera, Animation
 import matplotlib.pyplot as plt
 
@@ -180,8 +180,8 @@ class EdgeDetectionProgram(ObjectProgram):
 
 
 class TextureProgram(Program):
-    def __init__(self):
-        self.program = load_shaders('texture.vs', 'texture.fs')
+    def __init__(self, vertex_shader = 'texture.vs', fragment_shader = 'texture.fs'):
+        self.program = load_shaders(vertex_shader, fragment_shader)
         self.square = vbo.VBO(np.array([[1, 1], [1, -1], [-1, -1], [-1, 1]], dtype=np.float32))
 
         self.texture_location = glGetUniformLocation(self.program, 'u_texture')
@@ -213,6 +213,24 @@ class TextureProgram(Program):
             glUniform1f(self.width_location, width)
             glUniform1f(self.height_location, height)
 
+class GaussianBlurProgram(TextureProgram):
+    def __init__(self, vertex_shader, fragment_shader):
+        super(GaussianBlurProgram, self).__init__(vertex_shader, fragment_shader)
+
+    def set_weights(self, weights):
+        with self:
+            for i in range(5):
+                weight = weights[i]
+                weight_location = glGetUniformLocation(self.program, 'u_weights[%d]' % i)
+                glUniform1f(weight_location, weight)
+
+class GaussianBlurPass1Program(GaussianBlurProgram):
+    def __init__(self):
+        super(GaussianBlurPass1Program, self).__init__('texture.vs', 'gaussianblur1.fs')
+
+class GaussianBlurPass2Program(GaussianBlurProgram):
+    def __init__(self):
+        super(GaussianBlurPass2Program, self).__init__('texture.vs', 'gaussianblur2.fs')
 
 class GLWidget(QGLWidget):
     def __init__(self, geometries, board, parent):
@@ -246,30 +264,54 @@ class GLWidget(QGLWidget):
 
         glEnable(GL_CULL_FACE)
         glCullFace(GL_FRONT)
-        glEnable(GL_DEPTH_TEST)
 
         self.fbo_factory = FBOFactory()
         self.fbo_factory.resize(self.width(), self.height())
 
-        self.fbo = self.fbo_factory.create()
+        self.first_pass = self.fbo_factory.create()
+        self.second_pass = self.fbo_factory.create(depth_buffer=False)
         self.main_program = MainProgram()
         self.texture_program = TextureProgram()
         self.edge_program = EdgeDetectionProgram()
+
+        weights = np.zeros(5)
+        sigma2 = 4.0
+        weights[0] = gaussian(0,0,sigma2)
+        sum_weights = weights[0]
+        for i in range(1, 5):
+            weights[i] = gaussian(i, 0, sigma2)
+            sum_weights += 2 * weights[i]
+        weights = [x/sum_weights for x in weights]
+
+        self.gaussianblur1 = GaussianBlurPass1Program()
+        self.gaussianblur1.set_weights(weights)
+        self.gaussianblur2 = GaussianBlurPass2Program()
+        self.gaussianblur2.set_weights(weights)
 
         self.animations = []
 
         QTimer.singleShot(0, self.update)
 
     def paintGL(self):
-        self.fbo.bind()
+        self.first_pass.bind()
+        glEnable(GL_DEPTH_TEST)
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
         self._draw_scene()
-        self.fbo.unbind()
+        self.first_pass.unbind()
+
+        self.second_pass.bind()
+        glDisable(GL_DEPTH_TEST)
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+        self.gaussianblur1.set_fbo(self.first_pass)
+        self.gaussianblur1.draw()
+        self.second_pass.unbind()
 
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+        self.gaussianblur2.set_fbo(self.second_pass)
+        self.gaussianblur2.draw()
         # self._draw_edge('WhitesRook', [0,0])
-        self.texture_program.set_fbo(self.fbo)
-        self.texture_program.draw()
+        # self.texture_program.set_fbo(self.fbo)
+        # self.texture_program.draw()
 
     def resizeGL(self, width, height):
         # projection matrix
@@ -278,6 +320,8 @@ class GLWidget(QGLWidget):
         self.texture_program.resize(width, height)
         self.edge_program.resize(self._projection_matrix(), width, height)
         self.fbo_factory.resize(width, height)
+        self.gaussianblur1.resize(width, height)
+        self.gaussianblur2.resize(width, height)
 
     def mousePressEvent(self, event):
         self.mouse.x = event.pos().x()
