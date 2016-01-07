@@ -150,7 +150,7 @@ class EdgeDetectionProgram(ObjectProgram):
         self.texture_location = glGetUniformLocation(self.program, 'u_render_texture')
 
         with self:
-            glUniform1f(self.threshold_location, 0.5)
+            glUniform1f(self.threshold_location, 0.3)
 
     def resize(self, projection, width, height):
         super(EdgeDetectionProgram, self).set_projection_matrix(projection)
@@ -271,6 +271,7 @@ class GLWidget(QGLWidget):
         self.gaussian_first = self.fbo_factory.create()
         self.gaussian_second = self.fbo_factory.create(depth_buffer=False)
         self.edge_detection = self.fbo_factory.create(depth_buffer=False)
+        self.bloom_effect = self.fbo_factory.create()
         self.main_program = MainProgram()
         self.texture_program = TextureProgram()
         self.edge_program = EdgeDetectionProgram()
@@ -294,10 +295,16 @@ class GLWidget(QGLWidget):
         QTimer.singleShot(0, self.update)
 
     def paintGL(self):
+        oldIntensity = self.light.intensities
+        # draw chessman to get contour
         self.gaussian_first.bind()
         glEnable(GL_DEPTH_TEST)
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
-        self._draw_scene()
+        self.light.intensities = [0,0,0,0]
+        self.main_program.set_view_matrix(self._view_matrix())
+        self.main_program.set_light(self.light)
+        self.main_program.set_camera(self.camera)
+        self._draw_object('WhiteRook', [0,0])
         self.gaussian_first.unbind()
 
         self.gaussian_second.bind()
@@ -307,18 +314,26 @@ class GLWidget(QGLWidget):
         self.gaussianblur1.draw()
         self.gaussian_second.unbind()
 
-        # self.edge_detection.bind()
+        self.edge_detection.bind()
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
         self.gaussianblur2.set_fbo(self.gaussian_second)
         self.gaussianblur2.draw()
-        # self.edge_detection.unbind()
+        self.edge_detection.unbind()
 
-        # glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
-        # self.edge_program.set_fbo(self.edge_detection)
-        # self.edge_program.set_view_matrix(self._view_matrix())
-        # self._draw_edge('WhiteRook', [0,0])
-        # self.texture_program.set_fbo(self.fbo)
-        # self.texture_program.draw()
+        self.bloom_effect.bind()
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+        self.edge_program.set_fbo(self.edge_detection)
+        self.edge_program.set_view_matrix(self._view_matrix())
+        self._draw_edge('WhiteRook', [0,0])
+        self.bloom_effect.unbind()
+
+        self.light.intensities = oldIntensity
+        self.main_program.set_light(self.light)
+        glEnable(GL_DEPTH_TEST)
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+        for name, position in self._scene_objects():
+            self._draw_object(name, position)
+
 
     def resizeGL(self, width, height):
         # projection matrix
@@ -427,18 +442,14 @@ class GLWidget(QGLWidget):
                     name = 'BlackPawn'
             yield name, cell.position
 
-    def _draw_scene(self):
-        self.main_program.set_view_matrix(self._view_matrix())
-        self.main_program.set_light(self.light)
-        self.main_program.set_camera(self.camera)
-        for name, position in self._scene_objects():
-            vbos = self.VBOs[name]
-            geo = self.geometries[name]
-            for i in range(len(vbos)):
-                vbo = vbos[i]
-                effect = geo.materials[i].effect
-                model = self._model_matrix(geo, position)
-                self.main_program.draw(vbo, model, effect)
+    def _draw_object(self, name, position):
+        vbos = self.VBOs[name]
+        geo = self.geometries[name]
+        for i in range(len(vbos)):
+            vbo = vbos[i]
+            effect = geo.materials[i].effect
+            model = self._model_matrix(geo, position)
+            self.main_program.draw(vbo, model, effect)
 
     def _draw_edge(self, name, position):
         vbos = self.VBOs[name]
