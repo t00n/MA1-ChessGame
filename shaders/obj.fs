@@ -24,12 +24,14 @@ vec3 half_vector(vec3 v1, vec3 v2) {
     return (v1 + v2) / (length(v1 + v2));
 }
 
-float D_distribution(vec3 normal, vec3 hv, float roughness1, float roughness2) {
-    float alpha = dot(normal, hv);
-    float tan2 = (1 - pow(alpha, 2)) / (pow(alpha, 2) * pow(roughness1, 2));
-    float num = pow(2.71828, -tan2);
-    float denom = 3.1416 * pow(roughness1, 2) * pow(alpha, 4);
-    return num/denom;
+float D_distribution(vec3 normal, vec3 hv, vec3 tangent, vec3 bitangent, float roughness1, float roughness2) {
+    float alpha_x = dot(tangent, hv);
+    alpha_x = pow(alpha_x, 2) / pow(roughness1, 2);
+    float alpha_y = dot(bitangent, hv);
+    alpha_y = pow(alpha_y, 2) / pow(roughness2, 2);
+    float beta = (alpha_x + alpha_y) / (1 + dot(hv, normal));
+    float num = pow(2.71828, -beta);
+    return num;
 }
 
 float F_schlick(vec3 from_light, vec3 hv) {
@@ -42,18 +44,20 @@ float G_attenuation(vec3 to_light, vec3 to_camera, vec3 hv, vec3 normal) {
                (2 * dot(normal, hv) * dot(normal, to_light)) / dot(to_camera, hv)));
 }
 
-float cook_torrance(vec3 to_light, vec3 to_camera, vec3 normal, float roughness1, float roughness2) {
+float cook_torrance(vec3 to_light, vec3 to_camera, vec3 normal, vec3 tangent, vec3 bitangent, float roughness1, float roughness2) {
     vec3 hv = half_vector(to_light, to_camera);
-    return D_distribution(normal, hv, roughness1, roughness2)
+    return D_distribution(normal, hv, tangent, bitangent, roughness1, roughness2)
          * F_schlick(-to_light, hv)
          * G_attenuation(to_light, to_camera, hv, normal)
-         / (4 * dot(normal, to_camera) * dot(normal, to_light));
+         / (4 * 3.1416 * roughness1 * roughness2 * sqrt(dot(normal, to_camera) * dot(normal, to_light)));
 }
 
 void main(void) {
     // Calcule normal and position in world coordinates
     mat3 normalMatrix = transpose(inverse(mat3(u_model)));
     vec3 normal = normalize(normalMatrix * v_normal);
+    vec3 tangent = normalize(normalMatrix * v_tangent);
+    vec3 bitangent = normalize(normalMatrix * v_bitangent);
     vec3 position = vec3(u_model * vec4(v_position, 1));
 
     // Diffuse component
@@ -64,7 +68,7 @@ void main(void) {
 
     // Specular component
     vec3 to_camera = normalize(u_camera_position - position);
-    float specular_exponent = cook_torrance(to_light, to_camera, normal, 0.1, 0.1);
+    float specular_exponent = cook_torrance(to_light, to_camera, normal, tangent, bitangent, 0.1, 0.1);
     vec4 specular = (1- diffuse_coef) * specular_exponent * u_specular * u_light_intensities;
 
     // Ambient component

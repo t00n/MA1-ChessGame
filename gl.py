@@ -113,8 +113,9 @@ class ObjectProgram(Program):
             glUniformMatrix4fv(self.view_matrix_location, 1, GL_FALSE, matrix)
 
 class MainProgram(ObjectProgram):
-    def __init__(self, vertex_shader = 'obj.vs', fragment_shader = 'obj.fs'):
+    def __init__(self, vertex_shader = 'obj.vs', fragment_shader = 'obj.fs', specular=True):
         super(MainProgram, self).__init__(vertex_shader, fragment_shader)
+        self.specular = specular
         self.normal_location = glGetAttribLocation(self.program, 'a_normal')
         self.tangent_location = glGetAttribLocation(self.program, 'a_tangent')
         self.bitangent_location = glGetAttribLocation(self.program, 'a_bitangent')
@@ -151,16 +152,18 @@ class MainProgram(ObjectProgram):
                 try:
                     glEnableVertexAttribArray(self.position_location)
                     glEnableVertexAttribArray(self.normal_location)
-                    # glEnableVertexAttribArray(self.tangent_location)
-                    # glEnableVertexAttribArray(self.bitangent_location)
                     glVertexAttribPointer(self.position_location, 3, GL_FLOAT, False, 48, vbo)
                     glVertexAttribPointer(self.normal_location, 3, GL_FLOAT, False, 48, vbo+12)
-                    # glVertexAttribPointer(self.tangent_location, 3, GL_FLOAT, False, 48, vbo+24)
-                    # glVertexAttribPointer(self.bitangent_location, 3, GL_FLOAT, False, 48, vbo+36)
+                    if self.specular:
+                        glEnableVertexAttribArray(self.tangent_location)
+                        glEnableVertexAttribArray(self.bitangent_location)
+                        glVertexAttribPointer(self.tangent_location, 3, GL_FLOAT, False, 48, vbo+24)
+                        glVertexAttribPointer(self.bitangent_location, 3, GL_FLOAT, False, 48, vbo+36)
                     glDrawArrays(GL_TRIANGLES, 0, len(vbo))
                 finally:
-                    # glDisableVertexAttribArray(self.bitangent_location)
-                    # glDisableVertexAttribArray(self.tangent_location)
+                    if self.specular:
+                        glDisableVertexAttribArray(self.bitangent_location)
+                        glDisableVertexAttribArray(self.tangent_location)
                     glDisableVertexAttribArray(self.normal_location)
                     glDisableVertexAttribArray(self.position_location)
             finally:
@@ -168,7 +171,7 @@ class MainProgram(ObjectProgram):
 
 class ChessboardProgram(MainProgram):
     def __init__(self):
-        super(ChessboardProgram, self).__init__('obj.vs', 'chessboard.fs')
+        super(ChessboardProgram, self).__init__('obj.vs', 'chessboard.fs', False)
 
 class EdgeDetectionProgram(ObjectProgram):
     def __init__(self):
