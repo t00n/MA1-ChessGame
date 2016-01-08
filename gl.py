@@ -113,8 +113,8 @@ class ObjectProgram(Program):
             glUniformMatrix4fv(self.view_matrix_location, 1, GL_FALSE, matrix)
 
 class MainProgram(ObjectProgram):
-    def __init__(self):
-        super(MainProgram, self).__init__('obj.vs', 'obj.fs')
+    def __init__(self, vertex_shader = 'obj.vs', fragment_shader = 'obj.fs'):
+        super(MainProgram, self).__init__(vertex_shader, fragment_shader)
         self.normal_location = glGetAttribLocation(self.program, 'a_normal')
         self.light_position_location = glGetUniformLocation(self.program, 'u_light_position')
         self.light_intensities_location = glGetUniformLocation(self.program, 'u_light_intensities')
@@ -157,6 +157,10 @@ class MainProgram(ObjectProgram):
                     glDisableVertexAttribArray(self.position_location)
             finally:
                 vbo.unbind()
+
+class ChessboardProgram(MainProgram):
+    def __init__(self):
+        super(ChessboardProgram, self).__init__('obj.vs', 'chessboard.fs')
 
 class EdgeDetectionProgram(ObjectProgram):
     def __init__(self):
@@ -311,6 +315,7 @@ class GLWidget(QGLWidget):
         self.edge_detection_fbo = self.fbo_factory.create()
 
         self.main_program = MainProgram()
+        self.chessboard_program = ChessboardProgram()
         self.texture_program = TextureProgram()
         self.edge_program = EdgeDetectionProgram()
         self.twotextures_program = TwoTexturesProgram()
@@ -365,6 +370,7 @@ class GLWidget(QGLWidget):
 
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
         glEnable(GL_DEPTH_TEST)
+        self._draw_board()
         self.light.intensities = oldIntensity
         self.main_program.set_light(self.light)
         for name, position in self._scene_objects():
@@ -384,6 +390,7 @@ class GLWidget(QGLWidget):
         # projection matrix
         glViewport(0, 0, self.width(), self.height())
         self.main_program.set_projection_matrix(self._projection_matrix())
+        self.chessboard_program.set_projection_matrix(self._projection_matrix())
         self.texture_program.resize(width, height)
         self.edge_program.resize(self._projection_matrix(), width, height)
         self.fbo_factory.resize(width, height)
@@ -448,7 +455,6 @@ class GLWidget(QGLWidget):
                                translate([(position[0])*4, 0, (position[1])*4])])
 
     def _scene_objects(self):
-        yield 'Chessboard', [0, 0]
         for cell in self.board:
             if isinstance(cell, King):
                 if cell.color == Color.WHITE:
@@ -481,6 +487,19 @@ class GLWidget(QGLWidget):
                 else:
                     name = 'BlackPawn'
             yield name, cell.position
+
+    def _draw_board(self):
+        self.chessboard_program.set_view_matrix(self._view_matrix())
+        self.chessboard_program.set_light(self.light)
+        self.chessboard_program.set_camera(self.camera)
+        vbos = self.VBOs['Chessboard']
+        geo = self.geometries['Chessboard']
+        for i in range(len(vbos)):
+            vbo = vbos[i]
+            effect = geo.materials[i].effect
+            model = self._model_matrix(geo, [0, 0])
+            self.chessboard_program.draw(vbo, model, effect)
+
 
     def _draw_object(self, name, position):
         vbos = self.VBOs[name]

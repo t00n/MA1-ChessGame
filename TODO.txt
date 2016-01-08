@@ -1,6 +1,5 @@
 # Mandatory - real time
 Bump mapping on the chessboard
-Glowing effect on chessmen (effect blur or something like that)
 Reflective and refractive lighting
 
 # Optional - real time
