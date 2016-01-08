@@ -8,6 +8,7 @@ import numpy as np
 from vispy.util.transforms import *
 from collections import defaultdict
 from functools import reduce
+from time import time
 from util import look_at, gaussian
 from gl_component import Mouse, Light, Camera, Animation
 
@@ -321,6 +322,7 @@ class GLWidget(QGLWidget):
         QTimer.singleShot(0, self.update)
 
     def paintGL(self):
+        now = time()
         oldIntensity = self.light.intensities
         # draw chessman to get contour
         with self.object_fbo:
@@ -371,17 +373,12 @@ class GLWidget(QGLWidget):
             self._draw_object(name, position)
 
         glEnable(GL_BLEND)
+        glDisable(GL_DEPTH_TEST)
         glBlendFunc(GL_ONE_MINUS_SRC_ALPHA, GL_DST_COLOR)
-
-        # glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
-        # self.texture_program.set_fbo(self.object_fbo)
-        # self.texture_program.draw()
         self.texture_program.set_fbo(self.gaussian2_fbo)
         self.texture_program.draw()
-        # self.twotextures_program.set_fbo(self.gaussian1_fbo)
-        # self.twotextures_program.set_fbo2(self.object_fbo)
-        # self.twotextures_program.draw()
         glDisable(GL_BLEND)
+        fps = 1/(time() - now)
 
 
     def resizeGL(self, width, height):
@@ -397,8 +394,7 @@ class GLWidget(QGLWidget):
     def mousePressEvent(self, event):
         self.mouse.x = event.pos().x()
         self.mouse.y = event.pos().y()
-        glReadBuffer(GL_BACK)
-        z = glReadPixels(self.mouse.x, self.mouse.y, self.width(), self.height(), GL_DEPTH_COMPONENT, GL_FLOAT)[0][0]
+        z = glReadPixels(self.mouse.x, self.mouse.y, 1, 1, GL_DEPTH_COMPONENT, GL_FLOAT)[0][0]
         self._detect_collision(self.mouse.x, self.mouse.y, z)
 
     def mouseMoveEvent(self, event):
@@ -428,22 +424,18 @@ class GLWidget(QGLWidget):
         x = (2 * x) / self.width() - 1
         y = 1 - (2 * y) / self.height()
         z = 2 * z - 1
-        position = np.array([x, y, z, 1])
+        position = np.array([x, y, z, 1], dtype=np.float64)
         # print(position)
-        # world_to_cam = self._projection_matrix().dot(self._view_matrix())
-        # cam_to_world = np.linalg.inv(self._view_matrix()).dot(np.linalg.inv(self._projection_matrix()))
-        # position = cam_to_world.dot(position)
-        # print(position)
-        # position = [position[i] / position[3] for i in range(4)]
-        # print(position)
-        # position = np.linalg.inv(self._projection_matrix()).dot(position)
-        position = np.array(list(map(lambda x: round(x, 3), position)))
+        position = position.dot(np.linalg.inv(self._projection_matrix()))
+        print(position)
+        # position = position.dot(np.linalg.inv(self._view_matrix()))
+        position /= position[3]
         print(position)
         print()
 
     def _projection_matrix(self):
         return perspective(45, self.width()/self.height(), 0.1, 100)
-        # return ortho(-50, 50, -50, 50, 0, 100)
+        # return ortho(-30, 30, -30, 30, 0, 100)
 
     def _view_matrix(self):
         return look_at(self.camera.position, self.camera.direction, (0,1,0))
