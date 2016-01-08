@@ -201,7 +201,6 @@ class EdgeDetectionProgram(ObjectProgram):
             finally:
                 vbo.unbind()
 
-
 class TextureProgram(Program):
     def __init__(self, vertex_shader = 'texture.vs', fragment_shader = 'texture.fs'):
         self.program = load_shaders(vertex_shader, fragment_shader)
@@ -235,6 +234,15 @@ class TextureProgram(Program):
         with self:
             glUniform1f(self.width_location, width)
             glUniform1f(self.height_location, height)
+
+class BrightpartsProgram(TextureProgram):
+    def __init__(self):
+        super(BrightpartsProgram, self).__init__('texture.vs', 'brightparts.fs')
+        self.threshold_location = glGetUniformLocation(self.program, 'u_threshold')
+
+    def set_threshold(self, threshold):
+        with self:
+            glUniform1f(self.threshold_location, threshold)
 
 class GaussianBlurProgram(TextureProgram):
     def __init__(self, vertex_shader, fragment_shader):
@@ -289,12 +297,6 @@ class GLWidget(QGLWidget):
         # init window and context
         glClearColor(0.5, 0.5, 1.0, 1.0)
 
-        # load shaders
-
-        VERTEX_SHADER = shaders.compileShader(open('shaders/texture.vs').read(), GL_VERTEX_SHADER)
-        FRAGMENT_SHADER = shaders.compileShader(open('shaders/texture.fs').read(), GL_FRAGMENT_SHADER)
-        self.program_texture = shaders.compileProgram(VERTEX_SHADER, FRAGMENT_SHADER)
-
         # load VBOs
         self.VBOs = defaultdict(lambda: [])
         for name, geo in self.geometries.items():
@@ -318,6 +320,7 @@ class GLWidget(QGLWidget):
         self.chessboard_program = ChessboardProgram()
         self.texture_program = TextureProgram()
         self.edge_program = EdgeDetectionProgram()
+        self.brightparts_program = BrightpartsProgram()
         self.twotextures_program = TwoTexturesProgram()
         self.gaussianblur1 = GaussianBlurPass1Program()
         self.gaussianblur2 = GaussianBlurPass2Program()
@@ -328,7 +331,6 @@ class GLWidget(QGLWidget):
 
     def paintGL(self):
         now = time()
-        oldIntensity = self.light.intensities
         # draw chessman to get contour
         with self.object_fbo:
             glEnable(GL_DEPTH_TEST)
@@ -340,23 +342,21 @@ class GLWidget(QGLWidget):
                 self._draw_object(name, position)
             glDisable(GL_DEPTH_TEST)
 
-        with self.gaussian1_fbo:
-            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
-            self.gaussianblur1.set_fbo(self.object_fbo)
-            self.gaussianblur1.draw()
+        # with self.gaussian1_fbo:
+        #     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+        #     self.gaussianblur1.set_fbo(self.object_fbo)
+        #     self.gaussianblur1.draw()
 
-        with self.gaussian2_fbo:
-            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
-            self.gaussianblur2.set_fbo(self.gaussian1_fbo)
-            self.gaussianblur2.draw()
+        # with self.gaussian2_fbo:
+        #     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+        #     self.gaussianblur2.set_fbo(self.gaussian1_fbo)
+        #     self.gaussianblur2.draw()
 
         with self.edge_detection_fbo:
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
-            self.edge_program.set_threshold(0.25)
-            self.edge_program.set_fbo(self.gaussian2_fbo)
-            self.edge_program.set_view_matrix(self._view_matrix())
-            for name, position in self._scene_objects():
-                self._draw_edge(name, position)
+            self.brightparts_program.set_threshold(0.9)
+            self.brightparts_program.set_fbo(self.object_fbo)
+            self.brightparts_program.draw()
 
         with self.gaussian1_fbo:
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
@@ -371,8 +371,6 @@ class GLWidget(QGLWidget):
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
         glEnable(GL_DEPTH_TEST)
         self._draw_board()
-        self.light.intensities = oldIntensity
-        self.main_program.set_light(self.light)
         for name, position in self._scene_objects():
             self._draw_object(name, position)
 
@@ -393,6 +391,7 @@ class GLWidget(QGLWidget):
         self.chessboard_program.set_projection_matrix(self._projection_matrix())
         self.texture_program.resize(width, height)
         self.edge_program.resize(self._projection_matrix(), width, height)
+        self.brightparts_program.resize(width, height)
         self.fbo_factory.resize(width, height)
         self.gaussianblur1.resize(width, height)
         self.gaussianblur2.resize(width, height)

@@ -5,7 +5,7 @@ uniform float u_height;
 uniform sampler2D u_render_texture;
 uniform float u_threshold;
 
-float luminance(vec3 color) {
+float luma(vec3 color) {
     return 0.2126 * color.r + 0.7152 * color.g + 0.0722 * color.b;
 }
 
@@ -14,14 +14,14 @@ void main(void) {
     float y = gl_FragCoord.y/u_height;
     float dx = 1.0/u_width;
     float dy = 1.0/u_height;
-    float s00 = luminance(texture(u_render_texture, vec2(x - dx, y + dy)).rgb);
-    float s10 = luminance(texture(u_render_texture, vec2(x - dx, y)).rgb);
-    float s20 = luminance(texture(u_render_texture, vec2(x - dx, y - dy)).rgb);
-    float s01 = luminance(texture(u_render_texture, vec2(x, y + dy)).rgb);
-    float s21 = luminance(texture(u_render_texture, vec2(x, y - dy)).rgb);
-    float s02 = luminance(texture(u_render_texture, vec2(x + dx, y + dy)).rgb);
-    float s12 = luminance(texture(u_render_texture, vec2(x + dx, y)).rgb);
-    float s22 = luminance(texture(u_render_texture, vec2(x + dx, y - dy)).rgb);
+    float s00 = luma(texture(u_render_texture, vec2(x - dx, y + dy)).rgb);
+    float s10 = luma(texture(u_render_texture, vec2(x - dx, y)).rgb);
+    float s20 = luma(texture(u_render_texture, vec2(x - dx, y - dy)).rgb);
+    float s01 = luma(texture(u_render_texture, vec2(x, y + dy)).rgb);
+    float s21 = luma(texture(u_render_texture, vec2(x, y - dy)).rgb);
+    float s02 = luma(texture(u_render_texture, vec2(x + dx, y + dy)).rgb);
+    float s12 = luma(texture(u_render_texture, vec2(x + dx, y)).rgb);
+    float s22 = luma(texture(u_render_texture, vec2(x + dx, y - dy)).rgb);
     float sx = s00 + 2 * s10 + s20 - (s02 + 2 * s12 + s22);
     float sy = s00 + 2 * s01 + s02 - (s20 + 2 * s21 + s22);
     float dist = pow(sx, 2) + pow(sy,2);

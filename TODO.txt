@@ -14,3 +14,10 @@ Raytracing with glass chessmen (no bump mapping)
 
 # Score + 2
 Bowling ball colliding on two pieces on the chessboard
+
+
+# Qt
+refractive/reflective/classic
+cook torrance anisotropy
+gaussian blur sigma ?
+edge detection threshold
