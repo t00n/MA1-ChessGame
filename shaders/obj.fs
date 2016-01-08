@@ -45,7 +45,7 @@ float cook_torrance(vec3 to_light, vec3 to_camera, vec3 normal, float roughness)
     return D_distribution(normal, hv, roughness)
          * F_schlick(-to_light, hv)
          * G_attenuation(to_light, to_camera, hv, normal)
-         / (3.1416 * dot(normal, to_camera));
+         / (4 * dot(normal, to_camera) * dot(normal, to_light));
 }
 
 void main(void) {
