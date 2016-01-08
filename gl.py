@@ -117,6 +117,7 @@ class MainProgram(ObjectProgram):
         self.normal_location = glGetAttribLocation(self.program, 'a_normal')
         self.light_position_location = glGetUniformLocation(self.program, 'u_light_position')
         self.light_intensities_location = glGetUniformLocation(self.program, 'u_light_intensities')
+        self.light_attenuation_location = glGetUniformLocation(self.program, 'u_light_attenuation')
         self.camera_position_location = glGetUniformLocation(self.program, 'u_camera_position')
         self.diffuse_location = glGetUniformLocation(self.program, 'u_diffuse')
         self.ambient_location = glGetUniformLocation(self.program, 'u_ambient')
@@ -128,6 +129,7 @@ class MainProgram(ObjectProgram):
         with self:
             glUniform3fv(self.light_position_location, 1, light.position)
             glUniform4fv(self.light_intensities_location, 1, light.intensities)
+            glUniform1f(self.light_attenuation_location, light.attenuation)
 
     def set_camera(self, camera):
         with self:

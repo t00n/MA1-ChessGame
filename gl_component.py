@@ -92,6 +92,7 @@ class Light(MixinHasPosition):
     def __init__(self):
         super(Light, self).__init__(0,20,0)
         self._intensities = [1,1,1,1]
+        self.attenuation = 0.001
 
     def intensities():
         doc = "The intensities of the lights."

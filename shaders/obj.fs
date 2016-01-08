@@ -13,6 +13,7 @@ uniform mat4 u_view;
 uniform mat4 u_projection;
 uniform vec3 u_light_position;
 uniform vec4 u_light_intensities;
+uniform float u_light_attenuation;
 uniform vec3 u_camera_position;
 
 float R0 = pow((1 - u_index_of_refraction)/(1 + u_index_of_refraction), 2);
@@ -67,5 +68,12 @@ void main(void) {
     // Ambient component
     vec4 ambient = 0.05 * u_ambient * u_light_intensities;
 
-    gl_FragColor = ambient + diffuse + specular;
+    // Attenuation
+    float distance_to_light = length(u_light_position - position);
+    float attenuation = 1.0 / (1.0 + u_light_attenuation * pow(distance_to_light, 2));
+
+    // Gamma correction
+    vec4 gamma_correction = vec4(1.0/2.2);
+
+    gl_FragColor = pow(ambient + attenuation * (diffuse + specular), gamma_correction);
 }
