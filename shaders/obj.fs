@@ -62,7 +62,7 @@ void main(void) {
 
     // Specular component
     vec3 to_camera = normalize(u_camera_position - position);
-    float specular_exponent = cook_torrance(to_light, to_camera, normal, 0.3);
+    float specular_exponent = cook_torrance(to_light, to_camera, normal, 0.1);
     vec4 specular = (1- diffuse_coef) * specular_exponent * u_specular * u_light_intensities;
 
     // Ambient component
