@@ -328,14 +328,14 @@ class GLWidget(QGLWidget):
         with self.object_fbo:
             glEnable(GL_DEPTH_TEST)
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
-            self.light.intensities = [0,0,0,0]
             self.main_program.set_view_matrix(self._view_matrix())
             self.main_program.set_light(self.light)
             self.main_program.set_camera(self.camera)
-            self._draw_object('WhiteRook', [0,0])
+            for name, position in self._scene_objects():
+                self._draw_object(name, position)
+            glDisable(GL_DEPTH_TEST)
 
         with self.gaussian1_fbo:
-            glDisable(GL_DEPTH_TEST)
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
             self.gaussianblur1.set_fbo(self.object_fbo)
             self.gaussianblur1.draw()
@@ -347,10 +347,11 @@ class GLWidget(QGLWidget):
 
         with self.edge_detection_fbo:
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
-            self.edge_program.set_threshold(0.1)
+            self.edge_program.set_threshold(0.25)
             self.edge_program.set_fbo(self.gaussian2_fbo)
             self.edge_program.set_view_matrix(self._view_matrix())
-            self._draw_edge('WhiteRook', [0,0])
+            for name, position in self._scene_objects():
+                self._draw_edge(name, position)
 
         with self.gaussian1_fbo:
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
@@ -358,12 +359,9 @@ class GLWidget(QGLWidget):
             self.gaussianblur1.draw()
 
         with self.gaussian2_fbo:
-            glEnable (GL_BLEND)
-            glBlendFunc (GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
             self.gaussianblur2.set_fbo(self.gaussian1_fbo)
             self.gaussianblur2.draw()
-            glDisable(GL_BLEND)
 
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
         glEnable(GL_DEPTH_TEST)
@@ -379,6 +377,7 @@ class GLWidget(QGLWidget):
         self.texture_program.draw()
         glDisable(GL_BLEND)
         fps = 1/(time() - now)
+        # print(fps)
 
 
     def resizeGL(self, width, height):
