@@ -511,7 +511,7 @@ class GLWidget(QGLWidget):
         geo = self.geometries['Chessboard']
         for i in range(len(vbos)):
             vbo = vbos[i]
-            effect = geo.materials[i].effect
+            effect = geo.materials[i]
             model = self._model_matrix(geo, [0, 0])
             self.chessboard_program.draw(vbo, model, effect)
 
@@ -521,7 +521,7 @@ class GLWidget(QGLWidget):
         geo = self.geometries[name]
         for i in range(len(vbos)):
             vbo = vbos[i]
-            effect = geo.materials[i].effect
+            effect = geo.materials[i]
             model = self._model_matrix(geo, position)
             self.main_program.draw(vbo, model, effect)
 
