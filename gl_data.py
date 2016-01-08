@@ -27,6 +27,12 @@ for i, node in enumerate(data.scene.nodes):
         name = "".join(node.id.split('_')[:2])
         geometries[name] = Geometry(geo)
 
+geometries['Chessboard'].normals = []
+board = data.scene.nodes[19].children[0].geometry
+for prim in board.primitives:
+    geometries['Chessboard'].normals.append(prim.normal[prim.normal_index][:,[0,2,1]])
+
+
 # Adjust some specific things
 geometries['Chessboard'].scaling = np.array([1.5, 1, 1.5])
 for key, geo in geometries.items():
