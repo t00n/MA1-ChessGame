@@ -314,7 +314,8 @@ class GLWidget(QGLWidget):
         self.object_fbo = self.fbo_factory.create()
         self.gaussian1_fbo = self.fbo_factory.create(depth_buffer=False)
         self.gaussian2_fbo = self.fbo_factory.create()
-        self.edge_detection_fbo = self.fbo_factory.create()
+        self.brightparts_fbo = self.fbo_factory.create()
+        self.edgedetection_fbo = self.fbo_factory.create()
 
         self.main_program = MainProgram()
         self.chessboard_program = ChessboardProgram()
@@ -340,19 +341,16 @@ class GLWidget(QGLWidget):
             self.main_program.set_camera(self.camera)
             for name, position in self._scene_objects():
                 self._draw_object(name, position)
-            glDisable(GL_DEPTH_TEST)
 
-        # with self.gaussian1_fbo:
-        #     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
-        #     self.gaussianblur1.set_fbo(self.object_fbo)
-        #     self.gaussianblur1.draw()
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+        self._draw_board()
+        for name, position in self._scene_objects():
+            self._draw_object(name, position)
 
-        # with self.gaussian2_fbo:
-        #     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
-        #     self.gaussianblur2.set_fbo(self.gaussian1_fbo)
-        #     self.gaussianblur2.draw()
+        glDisable(GL_DEPTH_TEST)
 
-        with self.edge_detection_fbo:
+        # glow on bright parts
+        with self.brightparts_fbo:
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
             self.brightparts_program.set_threshold(0.9)
             self.brightparts_program.set_fbo(self.object_fbo)
@@ -360,7 +358,7 @@ class GLWidget(QGLWidget):
 
         with self.gaussian1_fbo:
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
-            self.gaussianblur1.set_fbo(self.edge_detection_fbo)
+            self.gaussianblur1.set_fbo(self.brightparts_fbo)
             self.gaussianblur1.draw()
 
         with self.gaussian2_fbo:
@@ -368,17 +366,35 @@ class GLWidget(QGLWidget):
             self.gaussianblur2.set_fbo(self.gaussian1_fbo)
             self.gaussianblur2.draw()
 
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
-        glEnable(GL_DEPTH_TEST)
-        self._draw_board()
-        for name, position in self._scene_objects():
-            self._draw_object(name, position)
+        glEnable(GL_BLEND)
+        glBlendFunc(GL_ONE_MINUS_SRC_ALPHA, GL_DST_ALPHA)
+        self.texture_program.set_fbo(self.gaussian2_fbo)
+        self.texture_program.draw()
+        glDisable(GL_BLEND)
+
+        with self.edgedetection_fbo:
+            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+            self.edge_program.set_threshold(2)
+            self.edge_program.set_fbo(self.object_fbo)
+            self.edge_program.set_view_matrix(self._view_matrix())
+            for name, position in self._scene_objects():
+                self._draw_edge(name, position)
+
+        with self.gaussian1_fbo:
+            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+            self.gaussianblur1.set_fbo(self.edgedetection_fbo)
+            self.gaussianblur1.draw()
+
+        with self.gaussian2_fbo:
+            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+            self.gaussianblur2.set_fbo(self.gaussian1_fbo)
+            self.gaussianblur2.draw()
 
         glEnable(GL_BLEND)
-        glDisable(GL_DEPTH_TEST)
         glBlendFunc(GL_ONE_MINUS_SRC_ALPHA, GL_DST_COLOR)
         self.texture_program.set_fbo(self.gaussian2_fbo)
         self.texture_program.draw()
+
         glDisable(GL_BLEND)
         fps = 1/(time() - now)
         # print(fps)
