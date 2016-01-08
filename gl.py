@@ -116,6 +116,8 @@ class MainProgram(ObjectProgram):
     def __init__(self, vertex_shader = 'obj.vs', fragment_shader = 'obj.fs'):
         super(MainProgram, self).__init__(vertex_shader, fragment_shader)
         self.normal_location = glGetAttribLocation(self.program, 'a_normal')
+        self.tangent_location = glGetAttribLocation(self.program, 'a_tangent')
+        self.bitangent_location = glGetAttribLocation(self.program, 'a_bitangent')
         self.light_position_location = glGetUniformLocation(self.program, 'u_light_position')
         self.light_intensities_location = glGetUniformLocation(self.program, 'u_light_intensities')
         self.light_attenuation_location = glGetUniformLocation(self.program, 'u_light_attenuation')
@@ -149,10 +151,16 @@ class MainProgram(ObjectProgram):
                 try:
                     glEnableVertexAttribArray(self.position_location)
                     glEnableVertexAttribArray(self.normal_location)
-                    glVertexAttribPointer(self.position_location, 3, GL_FLOAT, False, 24, vbo)
-                    glVertexAttribPointer(self.normal_location, 3, GL_FLOAT, False, 24, vbo+12)
+                    # glEnableVertexAttribArray(self.tangent_location)
+                    # glEnableVertexAttribArray(self.bitangent_location)
+                    glVertexAttribPointer(self.position_location, 3, GL_FLOAT, False, 48, vbo)
+                    glVertexAttribPointer(self.normal_location, 3, GL_FLOAT, False, 48, vbo+12)
+                    # glVertexAttribPointer(self.tangent_location, 3, GL_FLOAT, False, 48, vbo+24)
+                    # glVertexAttribPointer(self.bitangent_location, 3, GL_FLOAT, False, 48, vbo+36)
                     glDrawArrays(GL_TRIANGLES, 0, len(vbo))
                 finally:
+                    # glDisableVertexAttribArray(self.bitangent_location)
+                    # glDisableVertexAttribArray(self.tangent_location)
                     glDisableVertexAttribArray(self.normal_location)
                     glDisableVertexAttribArray(self.position_location)
             finally:
@@ -303,7 +311,9 @@ class GLWidget(QGLWidget):
             for i in range(len(geo.vertices)):
                 vertices = geo.vertices[i]
                 normals = geo.normals[i]
-                self.VBOs[name].append(vbo.VBO(np.concatenate((np.array(vertices), np.array(normals)), axis=1)))
+                tangents = geo.tangents[i]
+                bitangents = geo.bitangents[i]
+                self.VBOs[name].append(vbo.VBO(np.concatenate((vertices, normals, tangents, bitangents), axis=1)))
 
         glEnable(GL_CULL_FACE)
         glCullFace(GL_FRONT)
